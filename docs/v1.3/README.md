@@ -31,12 +31,14 @@ AI Film Studio 不是“按照步骤填完文档，再调用视频生成器”�
 | [10｜角色声音、语速与环境音规范](10-SOUND-VOICE-ASSET-SPEC-V1.md) | **声音身份、基准/表演语速、轻量环境声方向已批准（PD-008）**；样本/计量/模型适配细节仍为草案 |
 | [11｜资产生产就绪与质量验收](11-ASSET-PRODUCTION-READINESS-AND-QA.md) | **集中审定草案**：四类已批准资产标准，真实媒体、引用就绪、跨区风险与返工 QA |
 | [12｜导演 Shot→Clip 与资产交接](12-DIRECTOR-SHOT-TO-CLIP-HANDOFF.md) | **集中审定草案**：导演意图、同一 Shot 分镜、跨多 Clip、语速/声音/道具连续性及模型编译合同 |
+| [13｜H3 真实生成引擎与 Run/Take 生命周期](13-H3-GENERATION-ENGINE-AND-RUN-LIFECYCLE.md) | **综合草案**：区分自部署和 RunningHub 路由、合法模式编译、上传、DAG/真续接、媒体和费用 |
+| [14｜审片、时间线与真实成片](14-REVIEW-TIMELINE-FINISHING-V1.md) | **综合草案**：真实 Take QA、专业返工、非破坏性轻剪辑、音画衔接、Render 文件验证 |
 
 ## 已确认约束与待核实事项
 
 **已确认**：六区共同决定作品质量；故事与剧本是创作原点；专业 LLM 贯穿所有工作区；正式项目事实与版本由系统管理；第 3 区创建 Shot、第 4 区完善同一 Shot；Shot 和 Generation Clip 不等同；V1 单次 Clip 时长上限 15 秒；H3 主力、跨模型可扩展；原生续接必须具备真实上游依赖。
 
-**尚未验证**：当前中转站具体模型路由、H3 模式及 Prompt/API 字段、真实 Motion Context 保存与重放接口、视频模型的并发/取消/费用接口、图片模型格式与约束。
+**公开文档已核对，未进行本项目真实调用**：自部署 H3、RunningHub H3 与 GPT Image 2 的公开路由字段、模式、文件输入已整理于 [接口证据清单](../integrations/H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md)。**仍未实测**：本项目账号可用性、图板/声音实际控制效果、自部署真 Motion Context 续接调用合同、真实成本、并发与媒体质量。
 
 本阶段**不指定 Agent 人数、编排框架、技术栈或数据库物理表**；不使用真实 API Key；不发起收费模型调用。
 
