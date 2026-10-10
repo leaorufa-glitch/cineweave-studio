@@ -44,13 +44,13 @@
 用于强调同一角色 Look、场景图板、道具图板与声音参考的一致性。按当前路由已文档化的参考槽位编译，整张图板当作**一个真实媒体引用**，每格是内部内容，不拆四张正式媒体。
 
 **方案 F：首帧/首尾帧驱动**  
-用于强调某个实际 Shot 的开始/结束画面与构图。首帧必须是单幅**导演/分镜级的电影画面**，而不是人物或场景四视角图板。**公开自部署 H3 模式下 F 与 R 互斥**：不可同时提交 \`first_frame\` 与 \`reference_image\`。要由用户/专业导演明确权衡可行模式，不能悄悄丢掉必要的人物身份约束。
+用于强调某个实际 Shot 的开始/结束画面与构图。首帧必须是单幅**导演/分镜级的电影画面**，而不是人物或场景四视角图板。**公开自部署 H3 模式下 F 与 R 互斥**：不可同时提交 `first_frame` 与 `reference_image`。要由用户/专业导演明确权衡可行模式，不能悄悄丢掉必要的人物身份约束。
 
 **方案 C：真正原生 Motion Context 续接**  
 只在特定可调用接口已验证存在、已保存父 Take 的 Motion Context，并且父结果/权限/路由均满足时才标记为“真正续接可执行”。**目前公开 Darl MiniMax-H3 与 RunningHub 文档未给本项目可直接执行的原生续接合同**；用户报告的自部署实现先登记为「待核实自有续接 Adapter」。
 
 **方案 S：同一次视频的二次采样/再生成**  
-Darl 自部署网关文档披露了 \`second-sampling\`；它是已有 Run 结果的质量/采样分支，**不是新时间段的 Generation Clip，也不是 Motion Context 续接**。RunningHub 文档未提供独立二采端点，其 \`upscale\` 是创建工作流时的参数，不自动代表同一机制。
+Darl 自部署网关文档披露了 `second-sampling`；它是已有 Run 结果的质量/采样分支，**不是新时间段的 Generation Clip，也不是 Motion Context 续接**。RunningHub 文档未提供独立二采端点，其 `upscale` 是创建工作流时的参数，不自动代表同一机制。
 
 ### 2.4 编译器建议边界
 
@@ -60,9 +60,9 @@ Darl 自部署网关文档披露了 \`second-sampling\`；它是已有 Run 结�
 
 建议至少有三个**逻辑** Adapter Profile（不意味着 V1 必须微服务化）：
 
-- \`DarlSelfHostedH3\`：\`MiniMax-H3\` + \`content[]\`，支持文档声明的文本/首尾帧/Reference 模式、取消和二采；
-- \`DarlRunningHubH3\`：\`runninghub-minimax-h3\` + 网关上传 ID、\`prompt\`、\`reference_images\` 等，状态和错误独立解析；无已文档化的取消/独立二采/续接；
-- \`CustomH3NativeContinuation\`：**仅保留接口抽象和必要字段约束，尚未连接/未验证**。需拿到用户现有服务的真实输入、输出和 Context 传递协议后才能编译与标记就绪。
+- `DarlSelfHostedH3`：`MiniMax-H3` + `content[]`，支持文档声明的文本/首尾帧/Reference 模式、取消和二采；
+- `DarlRunningHubH3`：`runninghub-minimax-h3` + 网关上传 ID、`prompt`、`reference_images` 等，状态和错误独立解析；无已文档化的取消/独立二采/续接；
+- `CustomH3NativeContinuation`：**仅保留接口抽象和必要字段约束，尚未连接/未验证**。需拿到用户现有服务的真实输入、输出和 Context 传递协议后才能编译与标记就绪。
 
 其他视频模型（如 Seedance/Wan3）之后也各自提供 Typed Compiler，并据真实能力声明模式；不能因为用户能调用中转站就默认特性相同。
 
@@ -70,9 +70,9 @@ Darl 自部署网关文档披露了 \`second-sampling\`；它是已有 Run 结�
 
 ### 3.1 完整图板是第 2 区正式资产
 
-- \`Character Look\` → 一张人物 2×2 整板 MediaFile。
-- \`Location/Environment\` → 一张场景上 1 下 3 整板 MediaFile。
-- \`Hero Prop/State\` → 一张关键道具上 1 下 3 整板 MediaFile。
+- `Character Look` → 一张人物 2×2 整板 MediaFile。
+- `Location/Environment` → 一张场景上 1 下 3 整板 MediaFile。
+- `Hero Prop/State` → 一张关键道具上 1 下 3 整板 MediaFile。
 - Voice Identity → 基准语速与当前正式样音（若真正存在），第 3/4 区添加某场某句表演语速覆盖。
 
 **不可**在第 5 区因为模式限制把四视角拆成四个新正式 Asset，也不能把“上 1 下 3 图板的四格”直接解释为“影片镜头顺序”。如果模型不能可靠理解完整图板，生成预检明确不兼容或风险，提供需要用户/导演参与的**受支持方案**，而不是编造未批准的图片重组行为。
@@ -83,14 +83,14 @@ Darl 自部署网关文档披露了 \`second-sampling\`；它是已有 Run 结�
 
 ### 3.3 不同上传契约
 
-- \`gpt-image-2\`：公开文档的图片生成返回 **\`data[].b64_json\`**，必须解码、检测、存入持久媒体存储并记录来源/原始质量；不能当作长期可用外链。图板内容 QA 单独完成。
-- 自部署统一 H3：\`content[].image_url.url\` 等接受公网 HTTP(S) 或 Data URI；标准文件网关上传并查询 URL 只是让本地/私有媒体成为合法视频输入的方式之一。要校验 URL 的有效期、可被上游服务访问以及隐私授权。
-- RunningHub H3：先通过 \`/runninghub/v1/uploads\` 上传，保留**渠道/密钥归属的网关素材 ID**，再引用上传 ID。旧渠道/密钥下的 ID 不可假定跨渠道有效。
-- 同一 \`MediaFile\` 可以映射到**不同路由上传记录**，但上传记录与文件身份不同；不要重复上传已经合法缓存且确认有效的媒体。
+- `gpt-image-2`：公开文档的图片生成返回 **`data[].b64_json`**，必须解码、检测、存入持久媒体存储并记录来源/原始质量；不能当作长期可用外链。图板内容 QA 单独完成。
+- 自部署统一 H3：`content[].image_url.url` 等接受公网 HTTP(S) 或 Data URI；标准文件网关上传并查询 URL 只是让本地/私有媒体成为合法视频输入的方式之一。要校验 URL 的有效期、可被上游服务访问以及隐私授权。
+- RunningHub H3：先通过 `/runninghub/v1/uploads` 上传，保留**渠道/密钥归属的网关素材 ID**，再引用上传 ID。旧渠道/密钥下的 ID 不可假定跨渠道有效。
+- 同一 `MediaFile` 可以映射到**不同路由上传记录**，但上传记录与文件身份不同；不要重复上传已经合法缓存且确认有效的媒体。
 
 ### 3.4 模型参考与声音身份不能混淆
 
-Voice Identity 及样音可复用是**创作/资产事实**；当前 H3 模式是否能输入声音样音、是否尊重角色语速、是否能稳定跨 Clip 保持音色，必须分别判断。没有支持精确 \`speed\` 字段时可以编排自然语言的表演指令，但**不能创造参数或声称锁定声纹**。第 6 区必须真正听音频。
+Voice Identity 及样音可复用是**创作/资产事实**；当前 H3 模式是否能输入声音样音、是否尊重角色语速、是否能稳定跨 Clip 保持音色，必须分别判断。没有支持精确 `speed` 字段时可以编排自然语言的表演指令，但**不能创造参数或声称锁定声纹**。第 6 区必须真正听音频。
 
 ## 四、Clip、Run、Take：每次生成都能追溯
 
@@ -122,28 +122,28 @@ Voice Identity 及样音可复用是**创作/资产事实**；当前 H3 模式�
 
 | UI/业务状态 | 含义 | 典型来源 |
 |---|---|---|
-| \`needs_inputs\` | 缺图板/Voice 或当前真实媒体失效 | 本地校验 |
-| \`needs_route_validation\` | 当前模式/参考输入是否合法未确认 | 能力矩阵 |
-| \`waiting_authorization\` | 费用/调用权限不足或未知 | 预算与授权 |
-| \`waiting_parent_take\` | 需要真实可采纳父 Take，而非 Clip 名称 | 续接 DAG |
-| \`waiting_motion_context\` | 父媒体有了，但仍无可用/可追踪 Context | 续接接口 |
-| \`ready\` | 预检通过，可以按预算提交 | 本地 |
-| \`submitting\` / \`submission_unknown\` | 提交中或网络异常，无法确认是否已接受 | 本地记录与远端查询 |
-| \`queued\` / \`running\` | 远端受理/执行中 | 路由独立状态映射 |
-| \`remote_succeeded\` | 远端声明成功，但媒体可能尚未持久化 | provider 状态 |
-| \`media_ready\` | 已下载、可解码/可播放、校验时长/音轨/尺寸 | 媒体检查 |
-| \`take_pending_review\` / \`take_accepted\` / \`take_rejected\` | 真实影音专业审片与采用状态 | 第 6 区 |
-| \`failed\` / \`cancelled\` | 根据原始服务状态和用户取消动作分别归因 | 不能只按网关 \`failed\` 判断 |
+| `needs_inputs` | 缺图板/Voice 或当前真实媒体失效 | 本地校验 |
+| `needs_route_validation` | 当前模式/参考输入是否合法未确认 | 能力矩阵 |
+| `waiting_authorization` | 费用/调用权限不足或未知 | 预算与授权 |
+| `waiting_parent_take` | 需要真实可采纳父 Take，而非 Clip 名称 | 续接 DAG |
+| `waiting_motion_context` | 父媒体有了，但仍无可用/可追踪 Context | 续接接口 |
+| `ready` | 预检通过，可以按预算提交 | 本地 |
+| `submitting` / `submission_unknown` | 提交中或网络异常，无法确认是否已接受 | 本地记录与远端查询 |
+| `queued` / `running` | 远端受理/执行中 | 路由独立状态映射 |
+| `remote_succeeded` | 远端声明成功，但媒体可能尚未持久化 | provider 状态 |
+| `media_ready` | 已下载、可解码/可播放、校验时长/音轨/尺寸 | 媒体检查 |
+| `take_pending_review` / `take_accepted` / `take_rejected` | 真实影音专业审片与采用状态 | 第 6 区 |
+| `failed` / `cancelled` | 根据原始服务状态和用户取消动作分别归因 | 不能只按网关 `failed` 判断 |
 
-不能把上述列表直接当成唯一数据库 Enum；未来实现可拆 \`submissionStatus\`、\`remoteStatus\`、\`mediaStatus\`、\`reviewStatus\` 组合以避免状态爆炸。
+不能把上述列表直接当成唯一数据库 Enum；未来实现可拆 `submissionStatus`、`remoteStatus`、`mediaStatus`、`reviewStatus` 组合以避免状态爆炸。
 
 ### 5.3 自部署与 RunningHub 的状态映射差异
 
-**自部署 MiniMax-H3**：文档返回 \`queued\`、\`processing\`、\`succeeded\`、\`failed\`，成功 URL 位于 \`content.video_url\`。文档说明取消后本地查询可能显示 \`failed\`，因此必须记录“取消操作及上游响应”，将失败原因与主动取消区分。
+**自部署 MiniMax-H3**：文档返回 `queued`、`processing`、`succeeded`、`failed`，成功 URL 位于 `content.video_url`。文档说明取消后本地查询可能显示 `failed`，因此必须记录“取消操作及上游响应”，将失败原因与主动取消区分。
 
-**RunningHub H3**：文档返回 \`queued\`、\`in_progress\`、\`completed\`、\`failed\`，成功 URL 位于 \`video_url\`。上传操作返回素材 ID，**素材 ID ≠ 视频任务 ID**。RunningHub 网关当前没有已文档化的任务取消接口。
+**RunningHub H3**：文档返回 `queued`、`in_progress`、`completed`、`failed`，成功 URL 位于 `video_url`。上传操作返回素材 ID，**素材 ID ≠ 视频任务 ID**。RunningHub 网关当前没有已文档化的任务取消接口。
 
-提交后若发生网络超时且可能已经付费排队，必须记录 \`submission_unknown\`、输入摘要和当次时间，不应**未经核实立即重复扣费提交**。是否支持幂等键或检索先前未知任务，要按路由真实核对；没有可靠检索方式就提示风险与可操作复核路径。
+提交后若发生网络超时且可能已经付费排队，必须记录 `submission_unknown`、输入摘要和当次时间，不应**未经核实立即重复扣费提交**。是否支持幂等键或检索先前未知任务，要按路由真实核对；没有可靠检索方式就提示风险与可操作复核路径。
 
 ### 5.4 真实续接 DAG
 
@@ -157,7 +157,7 @@ Voice Identity 及样音可复用是**创作/资产事实**；当前 H3 模式�
 
 任务提交前记录：当前模型/路由/模式、将提交 Clip 数量、预计每段时长、参考媒体（可能额外计费）、上限/自动重试额度、是否包含二采或潜在续接子段、实际价目来源与更新时间。
 
-RunningHub 公开文档当前以约 \$0.06/秒 × 账号分组倍率为示例；**价格有变化可能，且自部署与 RunningHub 计费不必相同**。供应商账单/网关 usage 为实际依据；如果获取不到可靠估价，显示**未知**，不虚报固定金额。
+RunningHub 公开文档当前以约 $0.06/秒 × 账号分组倍率为示例；**价格有变化可能，且自部署与 RunningHub 计费不必相同**。供应商账单/网关 usage 为实际依据；如果获取不到可靠估价，显示**未知**，不虚报固定金额。
 
 支持用户对明确范围、上限和重试次数**提前授权**，在范围内自动完成；超范围必须暂停并再次取得授权。设计/模拟/查资料不发起任何付费请求。
 
@@ -166,13 +166,13 @@ RunningHub 公开文档当前以约 \$0.06/秒 × 账号分组倍率为示例；
 | ID | 条件 | 应如何处理 |
 |---|---|---|
 | PRE-01 | Clip 时长 >15s | 拒绝生成；回第 4 区合理拆计划，不强制新增导演切镜 |
-| PRE-02 | 自部署 \`reference_image\` + \`first_frame\` 同时存在 | 拒绝无效模式，展示参考驱动/首帧驱动的互斥与可选方案 |
-| PRE-03 | RunningHub 提交未上传到**该渠道**的素材 ID | 先合法上传/校验渠道归属，不能把平台 \`file_*\` ID 填进去 |
-| PRE-04 | 图片模型返回 \`b64_json\` 但未入库 | 不能选择为正式图板/提交 H3；先保存真实媒体 |
+| PRE-02 | 自部署 `reference_image` + `first_frame` 同时存在 | 拒绝无效模式，展示参考驱动/首帧驱动的互斥与可选方案 |
+| PRE-03 | RunningHub 提交未上传到**该渠道**的素材 ID | 先合法上传/校验渠道归属，不能把平台 `file_*` ID 填进去 |
+| PRE-04 | 图片模型返回 `b64_json` 但未入库 | 不能选择为正式图板/提交 H3；先保存真实媒体 |
 | PRE-05 | 正式图板存在，但复合布局在目标视频模式未实测 | 如实显示“参考形式效果待验证”，不伪造已锁定人物/空间；按用户质量要求决定是否可继续 |
 | PRE-06 | 声音样音实际存在但目标模式不支持 | 不能谎报声纹锁定，可用合法的声音描述并提示风险，或按创作要求阻断 |
-| PRE-07 | 计划真续接，但没有 Context 或只提供末帧 | 保持 \`waiting_motion_context\` / 不可续接，不标成原生续接 |
-| PRE-08 | 自部署 \`second-sampling\` 请求试图改变 Clip 时长/接续动作 | 阻止错误用法；二采对应同一时间段的新采样 |
+| PRE-07 | 计划真续接，但没有 Context 或只提供末帧 | 保持 `waiting_motion_context` / 不可续接，不标成原生续接 |
+| PRE-08 | 自部署 `second-sampling` 请求试图改变 Clip 时长/接续动作 | 阻止错误用法；二采对应同一时间段的新采样 |
 | PRE-09 | 模型路由不支持取消却显示“已取消成功” | 不允许；必须按真实路由显示“未提供远端取消能力” |
 | PRE-10 | 已提交请求响应丢失 | 进入未知状态/核对；不得无条件重复付费 |
 | PRE-11 | 参考图片超出路由数量或占据冲突角色 | 显示每张实际用途和模式冲突，提出可审阅的资产/模式调整方案 |
@@ -182,7 +182,7 @@ RunningHub 公开文档当前以约 \$0.06/秒 × 账号分组倍率为示例；
 
 ## 七、从第 5 区到第 6 区的真实交接
 
-一个 \`remote_succeeded\` Run 需要继续完成：
+一个 `remote_succeeded` Run 需要继续完成：
 
 1. **下载/入库真实媒体**：保存长期可访问视频（不是只存临时 URL），记录来源、hash、字节数、实际长度/画幅/帧率/音轨；失败的下载可独立重试，避免重新生成付费视频。
 2. **技术检查**：可解码/可播放、时长、音轨、声道、静音或异常、输出文件状态；模型声称原生音画并不自动证明当前媒体真的有合适对白。
@@ -205,9 +205,9 @@ RunningHub 公开文档当前以约 \$0.06/秒 × 账号分组倍率为示例；
 | **GEN-07** B1 换用另一 Take | B2 旧父链不删除，当前续接资格重新评估 |
 | **GEN-08** 自部署二次采样 | 同源 Run 创建新采样分支，不生成“下一段剧情”的假续接 |
 | **GEN-09** Run 成功/音视频损坏 | 远端成功≠真实媒体已就绪；支持针对媒体重下载而不是重付费生成 |
-| **GEN-10** 用户主动取消自部署 Run | 即使统一网关最终查询是 \`failed\`，仍保留取消意图/上游响应与退款核对 |
-| **GEN-11** 远端提交超时 | \`submission_unknown\` 保留不可变请求摘要，不立刻重新提交 |
-| **GEN-12** 声音样音/语速当前模式不兼容 | 提示风险、合法编译或阻断，不发不存在的 \`speed\`/voice API 字段 |
+| **GEN-10** 用户主动取消自部署 Run | 即使统一网关最终查询是 `failed`，仍保留取消意图/上游响应与退款核对 |
+| **GEN-11** 远端提交超时 | `submission_unknown` 保留不可变请求摘要，不立刻重新提交 |
+| **GEN-12** 声音样音/语速当前模式不兼容 | 提示风险、合法编译或阻断，不发不存在的 `speed`/voice API 字段 |
 | **GEN-13** 浏览器刷新或 Worker 重启 | 已提交 Run、远端 ID、真实文件和预算账目可恢复；没有幽灵任务 |
 | **GEN-14** Take 创作很差但远端成功 | 用户可拒用并反馈第 2/3/4/5 区，绝不自动判成片通过 |
 
