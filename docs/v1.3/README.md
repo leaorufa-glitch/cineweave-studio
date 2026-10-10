@@ -25,6 +25,7 @@ AI Film Studio 不是“按照步骤填完文档，再调用视频生成器”�
 | [04｜模型生产 DAG 与原生续接](04-GENERATION-DAG-AND-CONTINUATION.md) | 独立并行、合格父 Take、Motion Context、运行与失败恢复 |
 | [05｜模型编译、真实审片和质量控制](05-MODEL-COMPILERS-AND-QA.md) | 通用执行计划、模型专用编译、实媒体检查、选片、成片 |
 | [06｜关键决策与设计验收](06-REVIEW-AND-ACCEPTANCE.md) | 待审定决策、必须成立的不变量、如何连接 V1.2 案例 |
+| [07｜人物 Look 与一致性四宫格规范](07-CHARACTER-LOOK-GRID-SPEC-V1.md) | 第 2 区人物资产：已确认每 Look 一张完整四宫格、不拆分单图；Look 新建/修订条件及模型验收为待审定草案 |
 
 ## 已确认约束与待核实事项
 
