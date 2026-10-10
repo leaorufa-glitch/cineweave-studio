@@ -15,7 +15,7 @@ AI Film Studio：面向个人创作者的专业 AI 影视创作与制作系统�
 - 第 3 区决定 Shot 的创作意图与镜头语言，第 4 区完善同一个 Shot 并规划 Generation Clip。
 - Shot 与 Clip 分开管理：支持多镜头合并生成，以及长镜头分段续接。
 - 第 5 区执行生成并产生 Take，第 6 区审片、组织成片并向前反馈质量问题。
-- H3 为第一版主力，规划采用单次最长 15 秒；原生续接必须绑定真实的上游生成结果，并核实具体服务路由的能力。
+- **用户自有 H3 是第一版及后续的正式生产主力**；服务器目前未开机，RunningHub 只是可选过渡测试。规划单次最长 15 秒；原生续接绑定真实父结果与 Motion Context，待自有服务器开机后按实际接口联调。见 [PD-010](docs/decisions/2026-10-11-H3-SELF-HOSTED-PRIORITY.md)。
 - 项目独立，不沿用旧项目、旧仓库或旧 Skill 的设计结论。
 
 ## 文档导航
@@ -36,11 +36,11 @@ AI Film Studio：面向个人创作者的专业 AI 影视创作与制作系统�
 - **五项产品方向已于 2026-10-10 正式确认**：[查看决策记录](docs/decisions/2026-10-10-FIVE-PRODUCT-DIRECTIONS.md)。
 - **资产专项决定已确认**：[PD-006 人物每 Look 一张四宫格](docs/decisions/2026-10-10-CHARACTER-GRID-LOOK.md)、[PD-007 场景 1+3 分层宫格](docs/decisions/2026-10-10-SCENE-GRID-STANDARD.md)、[PD-008 角色声音与基准/表演语速](docs/decisions/2026-10-10-VOICE-ASSET-DIRECTION.md)、[PD-009 关键道具 1+3 整板](docs/decisions/2026-10-10-HERO-PROP-BOARD.md)。详细生图/声音/模型适配规则仍在审阅。
 - **V1.4：六区 UI/UX 第一轮文字交互草案**——[已提交，待审定](design/v1.4/README.md)，尚无效果图或可点击原型。
-- **模型接口核验**——已按 [Darl 公开文档](docs/integrations/H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md)核对两种 H3 路由和 GPT Image 2 的字段；**没有调用真实 API，未证明当前账号支持或模型实际效果**。
+- **模型接口核验**——[Darl 公开文档](docs/integrations/H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md)仅用于临时代理渠道的资料核对，**不代表自有 H3 的实际接口**；尚未执行真实模型测试。
 - **V1.3 生成制作与成片**——[生成引擎草案](docs/v1.3/13-H3-GENERATION-ENGINE-AND-RUN-LIFECYCLE.md)和[审片成片草案](docs/v1.3/14-REVIEW-TIMELINE-FINISHING-V1.md)已经集中形成。
 - **V1.5：Codex 工程实施包**——[架构、领域数据、API 和 CW-00～CW-12 执行任务草案](docs/v1.5/README.md)已形成；技术方向与启动授权待审定，**未开始代码开发**。
 
-项目最新要求：**暂不制作或更新关系视图**。V1.2/V1.3/V1.5 未经确认的详细设计不作为已批准实现要求；已明确批准的 **PD-001～PD-009 决策除外**。
+项目最新要求：**暂不制作或更新关系视图**。V1.2/V1.3/V1.5 未经确认的详细设计不作为已批准实现要求；已明确批准的 **PD-001～PD-010 决策除外**。
 技术栈、数据库表结构、Agent 架构尚未确定；未经确认的设计必须标为草案。
 
 本仓库按创作者决定保持公开。模型凭据不属于产品设计文档，本次初始化未写入凭据。
