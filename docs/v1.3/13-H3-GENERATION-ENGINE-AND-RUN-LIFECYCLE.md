@@ -137,9 +137,9 @@ Voice Identity 及样音可复用是**创作/资产事实**；当前 H3 模式�
 
 不能把上述列表直接当成唯一数据库 Enum；未来实现可拆 `submissionStatus`、`remoteStatus`、`mediaStatus`、`reviewStatus` 组合以避免状态爆炸。
 
-### 5.3 自部署与 RunningHub 的状态映射差异
+### 5.3 Darl 两个公开代理渠道的状态映射（仅资料参考/可选测试）
 
-**自部署 MiniMax-H3**：文档返回 `queued`、`processing`、`succeeded`、`failed`，成功 URL 位于 `content.video_url`。文档说明取消后本地查询可能显示 `failed`，因此必须记录“取消操作及上游响应”，将失败原因与主动取消区分。
+**Darl 网关的“自部署 MiniMax-H3”渠道（不是用户自有服务）**：文档返回 `queued`、`processing`、`succeeded`、`failed`，成功 URL 位于 `content.video_url`。文档说明取消后本地查询可能显示 `failed`，因此必须记录“取消操作及上游响应”，将失败原因与主动取消区分。
 
 **RunningHub H3**：文档返回 `queued`、`in_progress`、`completed`、`failed`，成功 URL 位于 `video_url`。上传操作返回素材 ID，**素材 ID ≠ 视频任务 ID**。RunningHub 网关当前没有已文档化的任务取消接口。
 
@@ -197,7 +197,7 @@ RunningHub 公开文档当前以约 $0.06/秒 × 账号分组倍率为示例；*
 | 用例 | 预期 |
 |---|---|
 | **GEN-01** 自有 H3 Mock 与可选代理路由（如果启用） | 自有协议未取得时只运行 Mock，不猜请求字段；如启用外部代理则分开编译、解析，不互相污染 |
-| **GEN-02** 图板媒体来自 GPT Image 2 | 保存真实 Base64 解码媒体及版本，能够导入两类 H3 的合法引用路径 |
+| **GEN-02** 图板媒体来自 GPT Image 2 | 保存真实 Base64 解码媒体及版本；将来按自有 H3 实际媒体引用方式输入，可选代理通道不构成发布前置 |
 | **GEN-03** 多资产参考绑定 | 保留人物/场景/道具整张图板的顺序、用途与来源；不产生四张正式拆格 |
 | **GEN-04** 首帧和参考混合 | 公开自部署路由被正确拒绝编译，解释互斥并给出导演可用选项 |
 | **GEN-05** RunningHub 临时通道被选用但素材上传失败 | 不能使用缺失/跨渠道 ID 提交收费视频；该可选通道未实现不阻挡主线 |
