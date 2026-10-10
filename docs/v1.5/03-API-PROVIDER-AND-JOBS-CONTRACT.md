@@ -6,6 +6,8 @@
 
 ## 一、API 设计的五个不可退让点
 
+**PD-010 路由主次**：**用户自有 H3 是生产主力**，服务器目前暂未开机；RunningHub 只是按需启用的临时测试渠道，**不要求首批开发完整适配，也不作为自有 H3 上线的前置**。Darl 公开“自部署 H3”代理接口不能代表用户自有部署的实际请求合同。见 [正式决定](../decisions/2026-10-11-H3-SELF-HOSTED-PRIORITY.md)。
+
 1. 六个工作区用**统一正式工程数据**；AI 建议只有被采纳后才影响正式对象。
 2. 前端不直接持有聚合网关 API 密钥，不直接提交收费 H3，不把外部生成任务状态当作本地作品真相。
 3. 所有正式修改以版本号或 expected_revision_id 做乐观并发检查，冲突返回明确的 409。
@@ -67,13 +69,13 @@
 
 不应默认每个 Adapter 都能实现最后三个能力；未支持要返回显式 unsupported，不应空实现却展示成功。
 
-### 3.1 当前三类适配器的差异（仅公开资料级）
+### 3.1 主生产适配器与可选临时路由（证据级别必须分开）
 
-| 类别 | 编译形状 | 素材准备 | 当前文档级注意事项 |
+| 优先级 / 类别 | 编译形状 | 素材准备 | 当前情况与职责 |
 |---|---|---|---|
-| **Darl 自部署 H3** | model=MiniMax-H3，content[]，duration/ratio | 合法 HTTP(S)/Data URI 或网关可访问方式 | reference 多模态与 first/last_frame 模式互斥；文档列二次采样和取消，但尚未实测用户账号 |
-| **Darl RunningHub H3** | model=runninghub-minimax-h3，prompt、seconds、aspect_ratio、reference_* | 先走 RunningHub 专用上传，取得属于该渠道的素材 ID | 不用自部署 content[]；当前公开工作流没有单独二采、取消或真续接合同 |
-| **用户自有 H3 真续接** | **协议未取得** | 真实父 Take/Context 如何保管未核对 | Adapter 只有接口桩/禁用状态；不得自行猜 URL/字段或假定 RunningHub 支持 |
+| **第一优先：用户自有 H3** | **自有真实部署协议尚待开机核实，不得照搬公开代理字段** | 按自有服务器实际媒体/参考/Context 机制实现 | **正式生产目标**，设计阶段先 Mock、构建父 Take/Motion Context 原生续接接口；服务器开机后联调 |
+| **可参考的公开资料：Darl 自部署 H3 网关** | 文档 model=MiniMax-H3，content[]、duration/ratio | 文档支持其规定的 URL/素材 | 仅是**该代理渠道的文档事实**，不是自有服务器已实现相同 API 的证据 |
+| **可选临时测试：Darl RunningHub H3** | 文档 model=runninghub-minimax-h3、prompt、seconds、reference_* | 专用上传返回属于该渠道的素材 ID | 服务器未开机时可酌情用于短期验证，**不做长期主路线或发布阻断项**；没有公开真续接接口 |
 
 图片服务建议独立 ImageAdapter：GPT Image 2 生成及编辑，返回的 Base64 入库，并经人物 2×2、场景/道具 1+3 真图 QA 后才成为正式参考。以上参数详见公开接口核验文档；**文档公开参数不能替代实际账号/能力/输出试验**。
 
@@ -133,13 +135,13 @@
 | API-02 | 以同一 Idempotency-Key 重复创建本地生成批次 | 只创建一个批次/SubmitIntent，不重复入队 |
 | API-03 | 无费用授权尝试提交视频 | 返回 403 或明确 waiting_authorization，远端 Submit 未执行 |
 | API-04 | 自部署 H3 Reference 和 first_frame 混传 | Validate 返回 422，指出互斥；不调用模型 |
-| API-05 | RunningHub 引用自部署的普通 URL 当成上传 ID | 拒绝，明确要求合法的渠道上传 |
+| API-05 | **如果启用临时 RunningHub Adapter**，将普通 URL 当成专用素材 ID | 拒绝，要求合法的渠道上传；**未启用时这项测试不阻止自有 H3 开发** |
 | API-06 | 使用相同完整宫格作为不同路由参考 | 媒体 ID 相同但 ProviderUpload 按渠道独立，不拆正式图板 |
 | API-07 | 无 Motion Context 却声明 native continuation | 424 或 waiting_motion_context，真续接 Submit 不执行 |
 | API-08 | 远端 success 但视频下载/解码失败 | Run success + media not-ready，Take 不进入可选列表 |
 | API-09 | Run 提交超时且不知是否扣费 | submission_unknown，不自动发第二次 Submit |
 | API-10 | 自部署取消请求最后返回 failed | 保留“用户主动取消”的实际操作证据，不简单归因生成失败 |
-| API-11 | RunningHub 没有取消接口 | 界面不提供虚假的远端取消成功动作 |
+| API-11 | RunningHub 临时 Adapter 未启用或无取消接口 | 不展示不存在的取消成功动作；该可选路由不构成发布阻断项 |
 | API-12 | 同 Run SecondSampling 与 B1→B2 真续接 | 两种关系分开，二采不能增加影片时长 |
 | API-13 | 页面刷新/Worker 重启 | Job、远端 ID、预算与媒资状态继续恢复 |
 | API-14 | 制片中更换父 Take | 旧子链历史和新父关系都正确，可见影响范围 |
@@ -147,6 +149,6 @@
 
 ## 七、工程准备结论与下一步
 
-采用**以能力矩阵驱动的 Typed Adapter + 持久 Worker + 真实媒体合同**。外部参数及当前成本在编码前再次对照官网/中转渠道更新；所有用户账号级支持与真实图板效果必须由授权的最小测试升级证据。
+采用**以自有 H3 为主的能力矩阵 + Typed Adapter + 持久 Worker + 真实媒体合同**。自有服务器关闭期间，以 Mock 和现有合规测试文件完成绝大部分功能；待开机时按其实际协议联调原生音画、完整图板与 Motion Context。RunningHub 只在必要时提供临时测试，不为其边缘接口投入主研发资源。外部文档不能替代自有真实路由验证。
 
 本文件没有批准实际开发。下一份：[Codex 分期开发任务与验收清单](04-CODEX-BACKLOG-AND-ACCEPTANCE.md)。
