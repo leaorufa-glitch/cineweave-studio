@@ -38,7 +38,7 @@ AI Film Studio：面向个人创作者的专业 AI 影视创作与制作系统�
 - **V1.4：六区 UI/UX 第一轮文字交互草案**——[已提交，待审定](design/v1.4/README.md)，尚无效果图或可点击原型。
 - **模型接口核验**——已按 [Darl 公开文档](docs/integrations/H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md)核对两种 H3 路由和 GPT Image 2 的字段；**没有调用真实 API，未证明当前账号支持或模型实际效果**。
 - **V1.3 生成制作与成片**——[生成引擎草案](docs/v1.3/13-H3-GENERATION-ENGINE-AND-RUN-LIFECYCLE.md)和[审片成片草案](docs/v1.3/14-REVIEW-TIMELINE-FINISHING-V1.md)已经集中形成。
-- **V1.5：Codex 工程实施包**——[第一轮架构与验收路线草案](docs/v1.5/README.md)已形成；技术方向待审定，**未开始代码开发**。
+- **V1.5：Codex 工程实施包**——[架构、领域数据、API 和 CW-00～CW-12 执行任务草案](docs/v1.5/README.md)已形成；技术方向与启动授权待审定，**未开始代码开发**。
 
 项目最新要求：**暂不制作或更新关系视图**。V1.2/V1.3/V1.5 未经确认的详细设计不作为已批准实现要求；已明确批准的 **PD-001～PD-009 决策除外**。
 技术栈、数据库表结构、Agent 架构尚未确定；未经确认的设计必须标为草案。
