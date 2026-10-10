@@ -28,6 +28,9 @@
 | [V1.3-10 角色声音与语速规范](v1.3/10-SOUND-VOICE-ASSET-SPEC-V1.md) | **声音方向已确认，详细规则待审定** | Voice Identity、基准语速、表演语速、停顿、样音、环境声与审片 QA |
 | [V1.3-11 第 2 区资产生产与 QA](v1.3/11-ASSET-PRODUCTION-READINESS-AND-QA.md) | **集中审定草案** | 一次整理已确认资产、真实媒体就绪、图板/声音模型适配、回流与验收 |
 | [V1.3-12 第 3→4 区导演到 Clip 交接](v1.3/12-DIRECTOR-SHOT-TO-CLIP-HANDOFF.md) | **集中审定草案** | 同一 Shot、视听动作/时间、完整资产引用、B1/B2 真续接和 H3 编译前检查 |
+| [V1.3-13 H3 生成制作引擎](v1.3/13-H3-GENERATION-ENGINE-AND-RUN-LIFECYCLE.md) | **集中审定草案** | 两种 H3 编译器、图板/声音模式、异步 DAG、Run/Take 和真续接边界 |
+| [V1.3-14 审片与成片规范](v1.3/14-REVIEW-TIMELINE-FINISHING-V1.md) | **集中审定草案** | Take 审片、音画连续性、时间码反馈、非破坏性轻剪辑、真实导出 |
+| [H3 / GPT Image 2 路由文档核验](integrations/H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md) | **公开文档级已核对，项目接口未实测** | 自部署 MiniMax-H3 与 RunningHub 参数区别、素材上传和二次采样/真续接差异 |
 | [V1.2/V1.3 关键设计决策简报](DESIGN-REVIEW-BRIEF-V1.2-V1.3.md) | **五项方向已批准；其他设计仍是草案** | 2026-10-10 正式确认 R-01～R-05 |
 | [正式产品决策 PD-001～PD-005](decisions/2026-10-10-FIVE-PRODUCT-DIRECTIONS.md) | **已确认** | 深度剧本共创、全程专业 AI、授权尺度、多集基础、轻量成片 |
 | [正式人物图片决策 PD-006](decisions/2026-10-10-CHARACTER-GRID-LOOK.md) | **已确认** | 所有正式人物、每个服装装造 Look 一张完整 2×2 四宫格、不拆四张单图 |
@@ -35,7 +38,8 @@
 | [声音身份和语速决策 PD-008](decisions/2026-10-10-VOICE-ASSET-DIRECTION.md) | **已确认** | 角色声音身份和基准语速、导演台词语速、环境声音轻量管理 |
 | [关键道具图板决策 PD-009](decisions/2026-10-10-HERO-PROP-BOARD.md) | **已确认** | 剧情关键道具一张完整 1+3 图板，普通环境道具归入场景 |
 | [V1.4 UI/UX 交互草案](../design/v1.4/README.md) | **第一轮文字草案已形成，待审定** | 六区页面信息、专业 AI、真实操作场景与 UX 验收；尚无图片/代码原型 |
-| V1.5 工程实施包 | 尚未开始 | 技术架构、API、物理数据结构、Codex 任务与测试 |
+| [V1.5 首轮工程总体方案](../docs/v1.5/01-ENGINEERING-ARCHITECTURE-AND-ACCEPTANCE-PLAN.md) | **首轮技术方向草案，未启动代码** | 模块化单体、持久 Worker、媒体存储、真实影视竖向验收切片 |
+| V1.5 详细物理数据与接口任务包 | **尚未定案** | 技术栈/Schema/真实路由验证与 Codex 实施清单 |
 
 ## 文档状态标准
 
