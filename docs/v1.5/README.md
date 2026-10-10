@@ -4,6 +4,8 @@
 
 当前按照创作者的要求，先完整收敛产品/专业 AI/生成/审片/技术方案，再决定是否启动 Codex 工程实施。不能把已经提交 GitHub 的文档等同于已运行系统。
 
+> **PD-010 最新优先级**：**自有 H3 才是长期生产主力**（目前服务器未开机），**RunningHub 只作临时测试**。首批用 Mock 完成不依赖服务器的开发；自有 H3 开机后再按真实接口联调，不需要预先完成 RunningHub 全功能。详见 [正式决定](../decisions/2026-10-11-H3-SELF-HOSTED-PRIORITY.md)。
+
 ## 集中审阅入口
 
 **[总体方案集中审定简报](../MASTER-DESIGN-REVIEW-V1.5.md)**：先看这一份即可了解已批准与待批准项目，不必逐文件重新确认小细节。
@@ -14,7 +16,7 @@
 |---|---|---|
 | [01｜工程总体架构与验收路线](01-ENGINEERING-ARCHITECTURE-AND-ACCEPTANCE-PLAN.md) | **建议方案草案** | 模块化 Web + 持久 Worker、媒资存储、六区真实闭环 |
 | [02｜领域数据、版本与事务合同](02-DOMAIN-DATA-AND-TRANSACTION-CONTRACT.md) | **工程实施合同草案** | Shot/Clip 多对多、图板唯一正式版本、媒体/Run/Take 溯源、父续接与并发约束 |
-| [03｜API、H3 适配器与任务合同](03-API-PROVIDER-AND-JOBS-CONTRACT.md) | **工程实施合同草案** | API、两条 H3 路由编译、权限、任务恢复、媒体技术检查、费用与阻断状态 |
+| [03｜API、H3 适配器与任务合同](03-API-PROVIDER-AND-JOBS-CONTRACT.md) | **工程实施合同草案** | **自有 H3 优先**、RunningHub 可选测试、权限、任务恢复、真实媒体与费用 |
 | [04｜Codex 开发清单与验收](04-CODEX-BACKLOG-AND-ACCEPTANCE.md) | **等待正式开工授权** | CW-00～CW-12 有依赖的开发任务、Mock 与收费测试边界、自动化验收 |
 | [H3 与 GPT Image 2 公开路由核验](../integrations/H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md) | **公开文档级核对，无当前项目实测** | 自部署 H3、RunningHub H3 请求合同差异、图板/声音/任务/API 验证 |
 | [V1.3-13｜生成引擎](../v1.3/13-H3-GENERATION-ENGINE-AND-RUN-LIFECYCLE.md) | **专项草案** | Typed 编译、队列与 DAG、父 Take Context、媒体与成本状态 |
