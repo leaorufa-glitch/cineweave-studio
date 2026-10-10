@@ -21,6 +21,7 @@ AI Film Studio：面向个人创作者的专业 AI 影视创作与制作系统�
 ## 文档导航
 
 - [项目工作规则](AGENTS.md)
+- **[集中审定总览 V1.5（建议先看这一份）](docs/MASTER-DESIGN-REVIEW-V1.5.md)**
 - [设计文档索引](docs/README.md)
 - [已确认架构基线摘要](docs/architecture/PRODUCT-BASELINE-V1.1.md)
 - [模型服务配置与待核实事项](docs/integrations/MODEL-SERVICES.md)
