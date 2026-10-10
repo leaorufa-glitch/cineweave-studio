@@ -2,7 +2,7 @@
 
 > **状态：草案，待审定**；日期：2026-10-10  
 > 依据：V1.1 已确认的 H3 主力、15 秒上限与**真实 Motion Context 续接**；V1.2 正在审阅的 Clip/Run/Take/Continuation Link 对象关系。  
-> **限制**：当前中转文档和 H3 路由细节尚未完成可核查阅读或真实接口测试。本文件定义应保证的业务语义，不假设某条路由已经支持某个 API 字段。
+> **状态更新（2026-10-10）**：已通过 Darl 公开文档完成自部署 H3/RunningHub 路由的**资料级核对**，但**尚未执行本项目真实接口测试**。真 Motion Context 续接仍未取得可执行公开合同；`second-sampling` 并非续接。最新证据见 [接入审查](../integrations/H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md) 和 [第 5 区生产引擎草案](13-H3-GENERATION-ENGINE-AND-RUN-LIFECYCLE.md)。本文件其余部分保留业务不变量。
 
 ## 一、我们要实现的不是“一个生成按钮”
 
