@@ -22,8 +22,10 @@
 | [V1.3-04 生成 DAG 与原生续接](v1.3/04-GENERATION-DAG-AND-CONTINUATION.md) | 草案 | 批量调度、合格父 Take、Motion Context、失败恢复 |
 | [V1.3-05 模型编译与媒体 QA](v1.3/05-MODEL-COMPILERS-AND-QA.md) | 草案 | 模型能力检查、专属编译、真实音画审查与轻量成片 |
 | [V1.3-06 关键决策与验收](v1.3/06-REVIEW-AND-ACCEPTANCE.md) | 草案 | 待确认事项、需实测的 H3 能力及工程验收条件 |
+| [V1.3-07 人物 Look 四宫格生成规范](v1.3/07-CHARACTER-LOOK-GRID-SPEC-V1.md) | **新增 Look 规则与生成验收待审定** | 一 Look 一张正式整图；候选/历史、质量规则、跨区引用 |
 | [V1.2/V1.3 关键设计决策简报](DESIGN-REVIEW-BRIEF-V1.2-V1.3.md) | **五项方向已批准；其他设计仍是草案** | 2026-10-10 正式确认 R-01～R-05 |
 | [正式产品决策 PD-001～PD-005](decisions/2026-10-10-FIVE-PRODUCT-DIRECTIONS.md) | **已确认** | 深度剧本共创、全程专业 AI、授权尺度、多集基础、轻量成片 |
+| [正式人物图片决策 PD-006](decisions/2026-10-10-CHARACTER-GRID-LOOK.md) | **已确认** | 所有正式人物、每个服装装造 Look 一张完整 2×2 四宫格、不拆四张单图 |
 | [V1.4 UI/UX 交互草案](../design/v1.4/README.md) | **第一轮文字草案已形成，待审定** | 六区页面信息、专业 AI、真实操作场景与 UX 验收；尚无图片/代码原型 |
 | V1.5 工程实施包 | 尚未开始 | 技术架构、API、物理数据结构、Codex 任务与测试 |
 
