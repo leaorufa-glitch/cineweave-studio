@@ -33,6 +33,7 @@ AI Film Studio：面向个人创作者的专业 AI 影视创作与制作系统�
 - **V1.2：六区业务、三层协作、统一影视对象、80 秒短片验收**——已形成**待审定草案**。
 - **V1.3：专业 LLM 贯穿六区、剧本引擎、导演 Shot/分镜、H3 生产调度与续接、真实媒体 QA**——已形成**待审定草案**。
 - **五项产品方向已于 2026-10-10 正式确认**：[查看决策记录](docs/decisions/2026-10-10-FIVE-PRODUCT-DIRECTIONS.md)。
+- **资产专项决定已确认**：[PD-006 人物每 Look 一张四宫格](docs/decisions/2026-10-10-CHARACTER-GRID-LOOK.md)、[PD-007 场景统一多视角宫格](docs/decisions/2026-10-10-SCENE-GRID-STANDARD.md)、[PD-008 角色声音与基准/表演语速](docs/decisions/2026-10-10-VOICE-ASSET-DIRECTION.md)。详细出图/声音/模型适配规则仍在审阅。
 - **V1.4：六区 UI/UX 第一轮文字交互草案**——[已提交，待审定](design/v1.4/README.md)，尚无效果图或可点击原型。
 - **V1.5：Codex 工程实施包**——尚未开始。
 
