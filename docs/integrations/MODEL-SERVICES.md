@@ -9,7 +9,8 @@
 | 聚合中转请求地址 | https://api.darl.cn |
 | 默认文本模型 | deepseek-v4.1-flash |
 | 默认图片模型 | gpt-image-2 |
-| 第一版视频主力 | MiniMax H3 |
+| 第一版视频正式主力 | **用户自有 H3 模型服务**（服务器当前未开机，待联调） |
+| 临时测试渠道 | **RunningHub H3**（仅按需过渡测试，不是长期主力） |
 | H3 RunningHub 文档 | https://api.darl.cn/docs/api/minimax/runninghub |
 | 完整中转文档 | https://fwr0187eq6.apifox.cn |
 | 项目生成时长规划 | 单次最长 15 秒 |
@@ -19,7 +20,9 @@
 
 ## 2026-10-10 后续公开接口文档核验（非本项目实测）
 
-请优先阅读：[H3 路由与图片模型文档证据清单](H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md)。核对内容包括：
+**用户确认的优先级（PD-010）**：自有 H3 才是正式生产目标；RunningHub 只用于服务器尚未开机时的临时测试。Darl 的“自部署”代理文档**不代表**用户自有服务器协议。开发可先完成 Mock/素材/Shot/Clip/审片/Render，待自有服务可访问时再联调原生音画和续接。详见 [正式决策](../decisions/2026-10-11-H3-SELF-HOSTED-PRIORITY.md)。
+
+公开资料请阅读：[H3 路由与图片模型文档证据清单](H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md)。其中：
 
 - **自部署 MiniMax-H3**：Darl 公共视频接口使用 `MiniMax-H3` + `content[]` 模态项；文档列 4–15 秒、帧与参考互斥、参考图/音频/视频限制、独立二次采样和取消。
 - **RunningHub H3**：使用 `runninghub-minimax-h3` + `prompt`、`reference_images` 等，素材必须通过 RunningHub 专用网关上传取得素材 ID；不能与自部署的 URL/`content[]` 请求混用。网关文档声明 RunningHub 无原生续接、取消或独立二采接口。
@@ -31,7 +34,8 @@
 ## 实施前仍须按本项目账号与真实媒体验证
 
 - 当前模型名称是否可用，具体请求、响应、异步轮询、失败信息与媒体访问约定。
-- RunningHub 路由支持的 H3 模式、时长、参考输入、原生音画及续接参数。
+- 自有 H3 服务器开机后的真实模型接口、参考图/音频、原生音画、Motion Context 续接协议。
+- RunningHub 仅在需要临时测试时核对其参考、上传和任务参数；**不构成主产品交付前置**。
 - 已实现的自部署 H3 续接能力对应的确切路由和上游输出依赖。
 - 多镜头、参考标签、音频参考与原生续接能否按同一服务契约组合。
 - 计费、并发、限流、超时、取消与失败恢复约定。
