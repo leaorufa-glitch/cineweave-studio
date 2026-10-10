@@ -22,6 +22,7 @@
 | [V1.3-04 生成 DAG 与原生续接](v1.3/04-GENERATION-DAG-AND-CONTINUATION.md) | 草案 | 批量调度、合格父 Take、Motion Context、失败恢复 |
 | [V1.3-05 模型编译与媒体 QA](v1.3/05-MODEL-COMPILERS-AND-QA.md) | 草案 | 模型能力检查、专属编译、真实音画审查与轻量成片 |
 | [V1.3-06 关键决策与验收](v1.3/06-REVIEW-AND-ACCEPTANCE.md) | 草案 | 待确认事项、需实测的 H3 能力及工程验收条件 |
+| [V1.2/V1.3 关键设计决策简报](DESIGN-REVIEW-BRIEF-V1.2-V1.3.md) | **待审定** | 5 组产品决策及进入 V1.4 的交互设计边界 |
 | V1.4 UI/UX | 尚未开始 | 六区页面、专业 AI 操作、跨区交互及选定方向的原型 |
 | V1.5 工程实施包 | 尚未开始 | 技术架构、API、物理数据结构、Codex 任务与测试 |
 
