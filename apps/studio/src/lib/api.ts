@@ -17,7 +17,7 @@ export async function dispatch(req:Request,parts:string[]):Promise<Response>{
  if(parts[0]==="projects"&&parts.length===1&&method==="GET")return send(await rows("SELECT p.*,f.id AS film_id FROM projects p JOIN films f ON f.project_id=p.id ORDER BY p.created_at DESC"));
  if(parts[0]==="projects"&&parts.length===1&&method==="POST"){
   const b=await jsonBody(req), name=required(b.name,"Project name"),idea=typeof b.idea==="string"?b.idea:"";
-  const result=await transaction(async c=>{const p=randomUUID(),f=randomUUID();await c.query("INSERT INTO projects(id,name,idea) VALUES($1,$2,$3)",[p,name,idea]);await c.query("INSERT INTO films(id,project_id,title) VALUES($1,$2,$3)",[f,p,name]);return {id:p,filmId:f,name,idea,version:1};});
+  const result=await transaction(async c=>{const p=randomUUID(),f=randomUUID();await c.query("INSERT INTO projects(id,name,idea,data_mode) VALUES($1,$2,$3,$4)",[p,name,idea,process.env.CINEWEAVE_TEST_MODE==="1"?"fixture":"production"]);await c.query("INSERT INTO films(id,project_id,title) VALUES($1,$2,$3)",[f,p,name]);return {id:p,filmId:f,name,idea,version:1};});
   return send(result,201);
  }
  if(parts[0]==="projects"&&parts.length===2&&method==="GET"){
@@ -38,7 +38,7 @@ export async function dispatch(req:Request,parts:string[]):Promise<Response>{
  if(parts[0]==="units"&&parts[2]==="revisions"&&method==="GET")return send(await rows("SELECT * FROM script_revisions WHERE unit_id=$1 ORDER BY revision_number",[uuid(parts[1])]));
  if(parts[0]==="units"&&parts[2]==="revisions"&&method==="POST"){
   const unit=uuid(parts[1]),b=await jsonBody(req),version=optimistic(b.expectedVersion),content=required(b.content,"Content");
-  const data=await transaction(async c=>{const row=await c.query("UPDATE script_units SET version=version+1 WHERE id=$1 AND version=$2 RETURNING id,version",[unit,version]);if(!row.rowCount)throw new HttpError(409,"Stale script version");const revision=randomUUID();await c.query("INSERT INTO script_revisions(id,unit_id,revision_number,content,source) VALUES($1,$2,$3,$4,'creator')",[revision,unit,version+1,content]);await c.query("UPDATE script_units SET adopted_revision_id=$2 WHERE id=$1",[unit,revision]);return {id:revision,version:version+1,content};});
+  const data=await transaction(async c=>{const row=await c.query("UPDATE script_units SET version=version+1 WHERE id=$1 AND version=$2 RETURNING id,version",[unit,version]);if(!row.rowCount)throw new HttpError(409,"Stale script version");const revision=randomUUID();await c.query("INSERT INTO script_revisions(id,unit_id,revision_number,content,source,title) VALUES($1,$2,$3,$4,'creator',$5)",[revision,unit,version+1,content,typeof b.title==="string"?b.title:null]);await c.query("UPDATE script_units SET adopted_revision_id=$2,title=COALESCE($3,title) WHERE id=$1",[unit,revision,typeof b.title==="string"?b.title:null]);return {id:revision,version:version+1,content};});
   return send(data,201);
  }
  if(parts[0]==="units"&&parts[2]==="proposals"&&method==="GET")return send(await rows("SELECT * FROM ai_proposals WHERE unit_id=$1 ORDER BY created_at DESC",[uuid(parts[1])]));
@@ -53,9 +53,10 @@ export async function dispatch(req:Request,parts:string[]):Promise<Response>{
   const result=await transaction(async c=>{
    const q=await c.query("SELECT * FROM ai_proposals WHERE id=$1 FOR UPDATE",[id]);const p=assertFound(q.rows[0]);if(p.status!=="pending")throw new HttpError(409,"Proposal already decided");
    if(decision==="reject"){await c.query("UPDATE ai_proposals SET status='rejected' WHERE id=$1",[id]);return {id,status:"rejected"};}
+   if(b.expectedEditVersion!=null&&p.edit_version!==optimistic(b.expectedEditVersion))throw new HttpError(409,'Candidate changed; refresh');
    const revision=randomUUID(),actualVersion=optimistic(b.expectedVersion);if(actualVersion!==p.base_version)throw new HttpError(409,"Proposal based on stale script");
    const u=await c.query("UPDATE script_units SET version=version+1 WHERE id=$1 AND version=$2 RETURNING version",[p.unit_id,p.base_version]);if(!u.rowCount)throw new HttpError(409,"Stale script version");
-   await c.query("INSERT INTO script_revisions(id,unit_id,revision_number,content,source) VALUES($1,$2,$3,$4,'mock_ai_adopted')",[revision,p.unit_id,p.base_version+1,p.suggestion]);await c.query("UPDATE script_units SET adopted_revision_id=$2 WHERE id=$1",[p.unit_id,revision]);await c.query("UPDATE ai_proposals SET status='adopted' WHERE id=$1",[id]);return {id,status:"adopted",revisionId:revision,version:p.base_version+1};
+   await c.query("INSERT INTO script_revisions(id,unit_id,revision_number,content,source) VALUES($1,$2,$3,$4,$5)",[revision,p.unit_id,p.base_version+1,p.suggestion,p.model==="mock"?"mock_ai_adopted":"ai_adopted:"+p.model]);await c.query("UPDATE script_units SET adopted_revision_id=$2 WHERE id=$1",[p.unit_id,revision]);await c.query("UPDATE ai_proposals SET status='adopted' WHERE id=$1",[id]);return {id,status:"adopted",revisionId:revision,version:p.base_version+1};
   });return send(result);
  }
  if(parts[0]==="films"&&parts[2]==="assets"&&method==="GET")return send(await rows("SELECT a.*,m.id AS media_id,m.filename,m.mime FROM assets a LEFT JOIN asset_revisions r ON r.id=a.adopted_revision_id LEFT JOIN media_files m ON m.id=r.media_id WHERE a.film_id=$1 ORDER BY a.created_at",[uuid(parts[1])]));

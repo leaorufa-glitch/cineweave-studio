@@ -8,3 +8,6 @@ node_modules/
 .env.local
 .local-media/
 *.tsbuildinfo
+
+# Private phase evidence and generated film deliveries
+output/
