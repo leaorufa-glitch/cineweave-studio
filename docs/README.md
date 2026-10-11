@@ -1,4 +1,4 @@
-> **最新 UI/UX 基线（PD-011，2026-10-11）**：用户上传的七页面 HTML/CSS/JS 源码包优先于旧 `design/v1.4/` 文字稿。**源码包上传 GitHub 仍待完成，现有 prototype/ 不是该上传原版。**详见 [PD-011](decisions/2026-10-11-HTML-PROTOTYPE-UI-BASELINE.md)。
+> **最新 UI/UX 基线（PD-011，2026-10-11）**：用户上传的七页面 HTML/CSS/JS 源码包优先于旧 `design/v1.4/` 文字稿。**新版 25 文件已经存于 [`design/approved-ui-2026/`](../design/approved-ui-2026/)，旧 `prototype/` 不是正式版本。**详见 [PD-011](decisions/2026-10-11-HTML-PROTOTYPE-UI-BASELINE.md)。
 
 # 设计文档索引
 
@@ -41,7 +41,7 @@
 | [声音身份和语速决策 PD-008](decisions/2026-10-10-VOICE-ASSET-DIRECTION.md) | **已确认** | 角色声音身份和基准语速、导演台词语速、环境声音轻量管理 |
 | [关键道具图板决策 PD-009](decisions/2026-10-10-HERO-PROP-BOARD.md) | **已确认** | 剧情关键道具一张完整 1+3 图板，普通环境道具归入场景 |
 | [自有 H3 主力决策 PD-010](decisions/2026-10-11-H3-SELF-HOSTED-PRIORITY.md) | **已确认** | 自有 H3 长期生产主力、RunningHub 仅临时测试、服务器暂未开机 |
-| [V1.4 UI/UX 交互草案](../design/v1.4/README.md) | **第一轮文字草案已形成，待审定** | 六区页面信息、专业 AI、真实操作场景与 UX 验收；尚无图片/代码原型 |
+| [正式七页面 UI/UX 源码及素材](../design/approved-ui-2026/index.html) | **用户批准的唯一界面原型** | 首页 + 六区、导航交互、HTML/CSS/JS 和媒体资源；前端演示不代表真实生成 |
 | [V1.5 首轮工程总体方案](v1.5/01-ENGINEERING-ARCHITECTURE-AND-ACCEPTANCE-PLAN.md) | **首轮技术方向草案，未启动代码** | 模块化单体、持久 Worker、媒体存储、真实影视竖向验收切片 |
 | [V1.5-02 最小数据和事务合同](v1.5/02-DOMAIN-DATA-AND-TRANSACTION-CONTRACT.md) | **实施合同草案** | 唯一正式资产、Shot/Clip、媒体、Run/Take 与事务一致性 |
 | [V1.5-03 API/Provider/Worker 合同](v1.5/03-API-PROVIDER-AND-JOBS-CONTRACT.md) | **实施合同草案** | 逻辑 API、H3 模式路由、预算、异步恢复和模型预检 |
@@ -56,8 +56,8 @@
 
 ## 当前推进原则
 
-1. **R-01～R-05 与 PD-006～PD-010 已获批准**。V1.2/V1.3/V1.5 其他细节继续按草案处理，与 V1.4 UX 设计相互校核。
-2. V1.4 第一轮六区文字交互已提交，接下来审阅用户操作和信息组织，再决定低保真与高保真视觉。
+1. **R-01～R-05 与 PD-006～PD-011 已获批准**。V1.2/V1.3/V1.5 其他细节仍为草案；实际界面实现以用户提交的七页面 HTML 原版为准。
+2. 旧 V1.4 文字 UI 草案被新版 25 文件完整交互原型取代；后续不再单独设计另一套页面。
 3. **V1.5-02～04 已写入工程候选合同**，但未获代码/部署许可。工程实施必须依据批准后的设计，不让 Codex 自行决定剧本、Shot、Clip、Take 等核心业务语义。
 4. **按照创作者最新要求，暂不新建或更新关系视图/图纸。** 本轮只维护文字设计文件；原有文件中已存在的图例不代表又制作了新图。
 5. 当前不创建应用前端、后端、数据库或收费 AI 生成任务；公开仓库不存放真实 API Key。

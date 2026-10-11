@@ -14,15 +14,15 @@
 
 ## 新提交压缩包的实物检查
 
-本次检查确认 ZIP 包含 25 个文件（含：`index.html`、`style.css`、`app.js`、`README.md`、`DESIGN_BASELINE.md`、20 张演示图片和 1 段 MP4），压缩包约 889 KiB。README 说明：首页 + 六区、桌面/移动布局、AI 助手、资产图库、导演 Shot/Clip 和审片/成片交互；`app.js` 为前端模拟逻辑，模型生成尚未真实接入。
+本次检查确认 ZIP 包含 25 个文件（含：`index.html`、`style.css`、`app.js`、`README.md`、`DESIGN_BASELINE.md`、19 张演示图片和 1 段 MP4），压缩包约 889 KiB。README 说明：首页 + 六区、桌面/移动布局、AI 助手、资产图库、导演 Shot/Clip 和审片/成片交互；`app.js` 为前端模拟逻辑，模型生成尚未真实接入。
 
-**仓库提交状态：** 源包上传需另行操作并验证。未取得 GitHub ZIP 文件 blob 的远端 SHA 和仓库路径前，不可以声称“完整压缩包已上传 GitHub”。
+**仓库提交状态（更新）**：从创作者放入本地的 ZIP 完整解压原版 25 个文件并逐一按字节比对，已推送到 `feat/approved-seven-page-ui-2026` 分支的 `design/approved-ui-2026/`；源文件与 `media/` 路径完整。原始 ZIP 不单独纳入仓库，以免冗余；其 SHA-256 为 `af9b61a6f4438af716fc673d4d517682159826a49f047863f2b204ce87be8766`。静态文件/引用检查已通过，浏览器逐屏视觉 QA 尚需另行执行。
 
 ## 后续文档优先级
 
 **正式业务产品决策 PD-001～PD-011**（业务约束）+ **用户七页面 HTML 原型**（界面/交互基线） → V1.5 技术实施合同（待批准） → V1.4 旧文字交互稿（历史参考，遇冲突让位）。
 
-建议新 HTML 原型上传到 `design/approved-ui-2026/` 或 `ui-reference/2026-10/`；其中正式原版、资源和说明都应保留可追溯性。不要以现有 `prototype/` 中另一套页面替换它。
+**正式原版位置**：[`design/approved-ui-2026/`](../../design/approved-ui-2026/)；`index.html`、`style.css`、`app.js`、README、DESIGN_BASELINE 和完整 `media/` 目录保持原版字节及相对路径。旧 `prototype/` 不能替代该原版。
 
 ## 2026-10-11 新的迁移及清理授权
 

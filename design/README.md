@@ -2,8 +2,8 @@
 
 **当前最高优先级 UI/UX 基线：用户提交的七页面 HTML 交互原型（PD-011）。**
 
-参见 [PD-011｜用户七页面 HTML 为后续 UI 开发基准](../docs/decisions/2026-10-11-HTML-PROTOTYPE-UI-BASELINE.md)。该原型源码包尚未成功写入 GitHub，待上传原件并验证后，需在这里替换为准确的浏览链接。不能将仓库现有 prototype/ 中的旧页面冒充用户新提交的版本。
+**正式 UI 原版入口**：[七页面 HTML](approved-ui-2026/index.html) · [源码目录及全部媒体](approved-ui-2026/) · [设计说明](approved-ui-2026/DESIGN_BASELINE.md) · [PD-011](../docs/decisions/2026-10-11-HTML-PROTOTYPE-UI-BASELINE.md)。25 文件按 ZIP 原始相对路径逐个校验，未改动原件。
 
-[旧 V1.4 文字交互设计](v1.4/README.md) 为**历史参考/验收来源**，不再指挥新版 UI 的布局、导航、交互。旧文件保留以免丢失历史决策和验收条目，后续完成映射后可以归档或删除。
+旧 V1.4 文字界面草案已由用户确认删除；历史仍可通过 Git 版本记录查阅。正式业务约束和验收应查阅 `docs/decisions/`、`docs/v1.3/` 与 `docs/v1.5/`。
 
 **原则：新 HTML 原型管界面，PD-001～PD-011 管已批准业务事实，V1.5 管可验证技术实现（待批准）。**
