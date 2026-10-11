@@ -65,12 +65,8 @@ Test-mode supervisor starts web only. Fixture scripts require explicit `*_test` 
 
 ## Actual media acceptance and remaining limits
 
-Historical development verified real DeepSeek/GPT Image 2, two ~4.46s H3 Takes and ~8.92s MP4. This sprint created **《再走一秒》**: real DeepSeek proposal, three GPT Image 2 complete boards and six 14s RunningHub attempts. **Two succeeded; four HTTP 502 responses lacked IDs and remain unknown, attempted once each without resubmission.** Actual source Takes are 608×352, ~14.375s each. First Take's late gaze toward camera was recorded at 12s and excluded by trimming to 11.5s. The timeline exported **25.889333s, 1280×720, 24fps, H.264/AAC**, preserving originals. This is a **partial, pending-quality technical sample**; 720p normalization does not recover source detail or prove native 480P.
+本轮 CW-P1-ACCEPTANCE-02 在同一 Film《再走一秒》完成六段真实 RunningHub H3 Take、审片记录、采用、时间线和 FFmpeg 输出。最终样片为 `83.361333s, 1280×720, 24fps, H.264/AAC`，交付记录见 `docs/execution/CW-P1-ACCEPTANCE-02.md`，本地媒体位于 `output/cw-p1-acceptance-20261011/`（不提交 Git）。
 
-Private delivery in original checkout: `output/phase1-finish-20261011/再走一秒-待审技术样例.mp4`, before/after screenshots, full boards, original Takes/contact sheets and QA. None are committed. `scripts/phase1-demo.mjs` needs explicit `CINEWEAVE_LIVE_DEMO=1`, is not an automated test and must not be rerun blindly. Its resume context is private `.local-media/phase1-demo.json`.
+四个原始 Run 的状态仍是 `submission_unknown`。网关任务历史没有匹配任务；请求日志显示 HTTP 502 的 RunningHub 提交响应解析失败、quota=0，但没有原始上游响应或远程 ID，不能据此证明从未接受。执行中曾错误地按缺失历史各补提一次；补 Run 与原 Run 分开保留，已停止继续重发，原 Run 的最终保护值为 `safeToRegenerate=false`。样片是可审阅技术交付，人物/场景/道具连续性和声音内容仍待创作者艺术审片。
 
-The planned ~80s full film is **not completed**: four unknown submissions need gateway reconciliation before further attempts. Board details, identity/continuity and audio content need creator art review. Owned H3 protocol/Motion Context await actual integration. Full automatic artistic QA, subtitle editor, multi-track mixing, complete multi-episode management and cross-project reuse remain later work.
-
-Creator-approved access policy (2026-10-11): all pages and business APIs are open to all visitors, without login, allowlists or role checks. Tunnel Host/Origin headers are accepted; GET/POST responses and OPTIONS preflight allow cross-origin browser access. Model keys remain private server configuration. Input/media validation, version conflicts, QA and idempotency continue to protect data integrity and prevent duplicate paid submissions.
-
-For the existing Cloudflare share, keep `npm run local` and its tunnel to `http://127.0.0.1:32787` running. Use the tunnel origin with `/approved/index.html`; project and media URLs are relative to that origin. This is the creator-authorized local share, not a new production deployment. No main merge or owned-H3 capability is claimed.
+生产页面已验证最终媒体可播放、可定位 0/40/80 秒；自动化测试和技术媒体检查不代表艺术质量通过。自有 H3 与原生 Motion Context 仍待真实联调；本轮仅使用公开 RunningHub 路由字段。

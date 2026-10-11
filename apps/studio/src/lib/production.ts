@@ -71,7 +71,7 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
    const outcome=await transaction(async client=>{
     const c=(await client.query("SELECT * FROM generation_clips WHERE id=$1 FOR UPDATE",[clip])).rows[0];if(!c)fail(404,"Clip not found");
     const previous=(await client.query("SELECT * FROM video_runs WHERE clip_id=$1 AND intent_key=$2",[clip,key])).rows[0];if(previous)return {result:previous,created:false};
-    if((await client.query("SELECT id FROM video_runs WHERE clip_id=$1 AND status IN ('preparing','submitting','submission_unknown')",[clip])).rowCount)fail(409,'Resolve the existing submission before creating another paid Run');
+    if((await client.query("SELECT id FROM video_runs WHERE clip_id=$1 AND status IN ('waiting_submit','preparing','submitting','submission_unknown','queued','in_progress','awaiting_media','media_failed')",[clip])).rowCount)fail(409,'Resolve the existing submission or retrieve its media before creating another paid Run');
     if(c.continuation_parent_clip_id)fail(409,"This Clip requires native Motion Context continuation. RunningHub does not support it.");
     const mediaIds=c.reference_media_ids as string[];
     const selectedRevisions=Array.isArray(c.plan?.referenceRevisionIds)?c.plan.referenceRevisionIds:[];

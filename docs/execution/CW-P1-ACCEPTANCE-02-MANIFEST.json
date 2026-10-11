@@ -1,0 +1,91 @@
+{
+  "filmId": "c54ee9bc-f71f-4966-ba51-e1b0087ed6cc",
+  "title": "再走一秒 · 第一阶段真实验收",
+  "renderId": "2a3ee190-5bed-4e9e-92c8-71baeb789e8f",
+  "outputMediaId": "962748c9-4907-488d-b264-ace6fed4cb0d",
+  "durationSeconds": 83.361333,
+  "timeline": [
+    {
+      "position": 0,
+      "clip": "01 · 停摆",
+      "takeId": "14bea28a-b4b3-4c2a-b917-56996ef989cd",
+      "in": 0,
+      "out": 11.5
+    },
+    {
+      "position": 1,
+      "clip": "02 · 尝试",
+      "takeId": "ed4eb4fc-7703-42c4-96c1-14d0c40ea83c",
+      "in": 0,
+      "out": 14.375
+    },
+    {
+      "position": 2,
+      "clip": "03 · 无声",
+      "takeId": "09d70363-b7a9-4a41-9b2b-22328fd14816",
+      "in": 0,
+      "out": 14.375
+    },
+    {
+      "position": 3,
+      "clip": "04 · 再试一次",
+      "takeId": "45b9591b-9dac-4d41-ab25-93536920d95e",
+      "in": 0,
+      "out": 14.375
+    },
+    {
+      "position": 4,
+      "clip": "05 · 一秒",
+      "takeId": "bab1cd69-b85b-48cf-b61c-813dec17df20",
+      "in": 0,
+      "out": 14.375
+    },
+    {
+      "position": 5,
+      "clip": "06 · 带走",
+      "takeId": "721cd7e5-ca8f-43cc-bf5b-334b5f150c01",
+      "in": 0,
+      "out": 14.375
+    }
+  ],
+  "technical": {
+    "container": "MP4",
+    "video": "H.264 1280x720 24fps",
+    "audio": "AAC 48000Hz stereo",
+    "sha256": "dccb6fc4266e90484c213f8db657b70e89f02de58b78a0ef230ff508343d67a5"
+  },
+  "qualityStatus": "needs_review",
+  "artifact": "output/cw-p1-acceptance-20261011/再走一秒-约80秒-第一阶段样片.mp4",
+  "acceptanceStatus": "partial_pending_artistic_review",
+  "unknownRuns": [
+    {
+      "runId": "9e0b1849-9b60-43b6-ace0-148d46975bd6",
+      "clip": "03",
+      "status": "submission_unknown",
+      "gatewayRequestId": "202610110904259840608768268d9d6u87qpTks",
+      "safeToRegenerate": false
+    },
+    {
+      "runId": "bc92c863-428b-4423-8878-5afe3e5880bf",
+      "clip": "04",
+      "status": "submission_unknown",
+      "gatewayRequestId": "202610110904473263952358268d9d6Iw0yMc9l",
+      "safeToRegenerate": false
+    },
+    {
+      "runId": "af2a8524-03a1-4826-8349-d8d637e9effc",
+      "clip": "05",
+      "status": "submission_unknown",
+      "gatewayRequestId": "202610110905037867032358268d9d6J6tmzLEw",
+      "safeToRegenerate": false
+    },
+    {
+      "runId": "3afd1bda-e999-4bf2-b757-62364d5a5450",
+      "clip": "06",
+      "status": "submission_unknown",
+      "gatewayRequestId": "202610110905195346261978268d9d6z5iODlMX",
+      "safeToRegenerate": false
+    }
+  ],
+  "reconciliationNote": "Gateway logs show HTTP 502 parser rejection and quota=0 but no raw upstream acceptance proof. Four supplemental recovery Runs were submitted after an early overconfident interpretation; originals remain protected and no further retries are permitted."
+}

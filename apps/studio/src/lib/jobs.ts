@@ -8,6 +8,7 @@ export type Run={id:string,clip_id:string,status:string,lease_token:string,provi
 export type VideoProvider={upload:typeof uploadRunningHubReference,create:typeof createRunningHubVideo,query:typeof queryRunningHubVideo,download:typeof downloadRunningHubVideo};
 const live:VideoProvider={upload:uploadRunningHubReference,create:createRunningHubVideo,query:queryRunningHubVideo,download:downloadRunningHubVideo};
 export const safeReason=(e:unknown)=>e instanceof GatewayError?'Gateway request failed (HTTP '+e.status+', '+(e.responseCode??'provider_error')+')':e instanceof Error?e.name+': task processing failed; inspect media and input validation':'Task processing failed';
+const safeProviderError=(e:unknown)=>e instanceof GatewayError?{kind:'gateway_error',status:e.status,responseCode:e.responseCode??null,requestId:e.requestId??null}:e instanceof Error?{kind:e.name,message:'task processing failed'}:{kind:'unknown_error'};
 export async function recoverExpiredJobs(){
  await ensureDb();
  // Legacy submitting/rendering jobs have no leases. Never guess that paid submission did not happen.
@@ -43,7 +44,7 @@ export async function submitVideo(run:Run,provider:VideoProvider=live){
   const result=await provider.create(s.prompt,s.seconds,s.aspectRatio,images,audio,video);
   // If this persistence fails, the lease recovery places the job in unknown; it never resubmits.
   await db().query("UPDATE video_runs SET provider_job_id=$3,status='queued',lease_token=NULL,lease_expires_at=NULL,error=NULL,next_poll_at=now()+interval '180 seconds',updated_at=now() WHERE id=$1 AND lease_token=$2",[run.id,run.lease_token,result.id]);
- }catch(e){const uncertain=submissionStarted&&(!(e instanceof GatewayError)||e.status>=500||e.status===408||e.responseCode==='NETWORK_UNCONFIRMED');await finish(run,uncertain?'submission_unknown':'failed',safeReason(e));}
+ }catch(e){const uncertain=submissionStarted&&(!(e instanceof GatewayError)||e.status>=500||e.status===408||e.responseCode==='NETWORK_UNCONFIRMED');await finish(run,uncertain?'submission_unknown':'failed',safeReason(e),{submissionError:safeProviderError(e)});}
 }
 export async function persistVideoTake(run:Run,bytes:Uint8Array,remote?:unknown){
  const existing=await db().query('SELECT id FROM video_takes WHERE run_id=$1',[run.id]);if(existing.rowCount){await finish(run,'completed',null,remote);return;}

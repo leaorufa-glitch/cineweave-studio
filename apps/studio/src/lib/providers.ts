@@ -1,10 +1,15 @@
 /* Model gateway contracts. Do not send the server's API key to any browser response. */
 import { Buffer } from "node:buffer";
-export type GatewayErrorFields={status?:number, provider?:string};
+export type GatewayErrorFields={status?:number, provider?:string, requestId?:string};
 export class GatewayError extends Error {
  status:number;
  responseCode?:string;
- constructor(message:string,status=502,responseCode?:string){super(message);this.name="GatewayError";this.status=status;this.responseCode=responseCode;}
+ requestId?:string;
+ constructor(message:string,status=502,responseCode?:string,requestId?:string){super(message);this.name="GatewayError";this.status=status;this.responseCode=responseCode;this.requestId=requestId;}
+}
+function gatewayRequestId(res:Response){
+ const value=res.headers.get('x-request-id')||res.headers.get('request-id')||res.headers.get('trace-id');
+ return value&&/^[A-Za-z0-9_.:-]{1,180}$/.test(value)?value:undefined;
 }
 export function gatewayConfig(){
  const key=process.env.DARL_API_KEY;
@@ -31,7 +36,8 @@ export async function gatewayJson(path:string,body?:unknown,method="POST",timeou
  try{data=JSON.parse(text)}catch{if(res.ok)throw new GatewayError("Provider returned invalid JSON",502,"NETWORK_UNCONFIRMED");}
  if(!res.ok){
   // Never surface upstream untrusted output verbatim, as it may contain sensitive headers.
-  throw new GatewayError("Gateway HTTP "+res.status,res.status>499?502:res.status,"HTTP_"+res.status);
+  const requestId=gatewayRequestId(res);
+  throw new GatewayError("Gateway HTTP "+res.status,res.status>499?502:res.status,"HTTP_"+res.status,requestId);
  }
  return data;
 }
@@ -86,7 +92,7 @@ export async function uploadRunningHubReference(bytes:Uint8Array,filename:string
  const form=new FormData();form.append("model","runninghub-minimax-h3");form.append("file",new Blob([new Uint8Array(bytes)],{type:mime}),filename);
  const r=await gatewayFetch("/runninghub/v1/uploads",{method:"POST",body:form},120_000);
  let data:Record<string,unknown>={};try{data=await r.json()}catch{}
- if(!r.ok)throw new GatewayError("RunningHub reference upload failed: HTTP "+r.status,502);
+ if(!r.ok)throw new GatewayError("RunningHub reference upload failed: HTTP "+r.status,502,"HTTP_"+r.status,gatewayRequestId(r));
  if(typeof data.id!=="string"||!data.id.startsWith("task_"))throw new GatewayError("RunningHub did not return upload material id",502);
  return {id:data.id,mediaType:data.media_type};
 }
