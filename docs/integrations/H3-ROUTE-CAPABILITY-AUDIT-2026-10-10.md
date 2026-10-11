@@ -1,5 +1,8 @@
 # 2026-10-10｜外部 Darl MiniMax H3、RunningHub 与 GPT Image 2 接入资料核验清单
 
+> **2026-10-11 实测进展与授权更新**：创作者已明确授权开发联调需要时直接使用 Darl 付费文本、图片、RunningHub H3 模型，无须逐次征询费用。以下“尚未实测/未经授权不得调用”均为**2026-10-10 历史文档状态**，不能覆盖新授权。2026-10-11 已在 CineWeave 本地开发分支 `feat/cw00-02-foundation` 使用真实项目测试 DeepSeek 场景改写（保存为待审 AI 提案）、GPT Image 2 人物完整 1024×1536 图板（上排正侧面良好、下排仍露脸，不符正式无头服装两格规范，故未自动采用）、RunningHub H3 专用参考上传→两个 4 秒 Run→实际媒体下载→两个 Take→人工测试采用→时间线→FFmpeg 8.917 秒 1280×720 H.264/AAC MP4 成片。相关代码、测试、QA 边界见 [apps/studio/README.md](../../apps/studio/README.md)。**自有 H3 真 Motion Context 仍待服务器开机联调；代理 RunningHub 并不能冒充此能力。**
+
+
 > **PD-010 路由主次更正（2026-10-11）**：**用户自有 H3 模型服务才是长期主力；RunningHub 仅作为自有服务器暂未开机时的临时测试**。本报告记录 Darl 公开网关的文档字段，**不代表用户自有 H3 的 API 请求/能力已核对，亦不要求工程首先把 RunningHub 全部功能做完**。见 [正式决定](../decisions/2026-10-11-H3-SELF-HOSTED-PRIORITY.md)。
 
 > **状态：公开渠道文档核对完成；真实认证请求与素材质量测试仍未执行。**  

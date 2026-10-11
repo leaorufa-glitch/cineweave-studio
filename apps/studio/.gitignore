@@ -1,6 +1,7 @@
 node_modules
 .next
 .local-media
+.local-pg/
 /public/approved/
 .env*
 !.env.example

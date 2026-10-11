@@ -1,0 +1,141 @@
+import {randomUUID} from "node:crypto";
+import { db,ensureDb,transaction } from "./db";
+import {GatewayError} from "./providers";
+const id=(v:string)=>{if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v))throw new GatewayError("Invalid ID",400);return v;};
+const fail=(s:number,m:string):never=>{throw new GatewayError(m,s);};
+const response=(v:unknown,s=200)=>Response.json(v,{status:s,headers:{"Cache-Control":"no-store"}});
+const json=async(req:Request):Promise<Record<string,unknown>>=>{try{return await req.json() as Record<string,unknown>}catch{return fail(400,"Invalid JSON");}};
+const required=(v:unknown,n:string):string=>typeof v==="string"&&v.trim()?v.trim():fail(400,n+" required");
+async function filmExists(film:string){const r=await db().query("SELECT id FROM films WHERE id=$1",[film]);if(!r.rowCount)fail(404,"Film not found");}
+const ratioOptions=["16:9","9:16","1:1","2:3","3:2","3:4","4:3","21:9"];
+export async function productionDispatch(req:Request,parts:string[]):Promise<Response|null>{
+ if(!["films","clips","runs","takes","renders"].includes(parts[0]))return null;
+ await ensureDb();
+ const method=req.method;
+ if(parts[0]==="films"&&parts.length===3&&parts[2]==="shots"){
+  const film=id(parts[1]);
+  if(method==="GET")return response((await db().query("SELECT * FROM director_shots WHERE film_id=$1 ORDER BY sequence_number,created_at",[film])).rows);
+  if(method==="POST"){
+   const b=await json(req),shotId=randomUUID(),title=required(b.title,"Shot title");
+   await filmExists(film);
+   const scene=b.sceneUnitId?id(String(b.sceneUnitId)):null;
+   if(scene){const parent=await db().query("SELECT id FROM script_units WHERE id=$1 AND film_id=$2 AND kind='scene'",[scene,film]);if(!parent.rowCount)fail(400,"Scene belongs to another film");}
+   await db().query("INSERT INTO director_shots(id,film_id,scene_unit_id,title,description,sequence_number) VALUES($1,$2,$3,$4,$5,$6)",[shotId,film,scene,title,String(b.description||""),Number(b.sequenceNumber)||0]);
+   return response({id:shotId,filmId:film,title,version:1},201);
+  }
+ }
+ if(parts[0]==="films"&&parts.length===3&&parts[2]==="clips"){
+  const film=id(parts[1]);
+  if(method==="GET")return response((await db().query("SELECT c.*,t.media_id AS adopted_media_id FROM generation_clips c LEFT JOIN video_takes t ON t.id=c.adopted_take_id WHERE film_id=$1 ORDER BY created_at",[film])).rows);
+  if(method==="POST"){
+   const b=await json(req),clipId=randomUUID(),title=required(b.title,"Clip title"),prompt=required(b.prompt,"Clip prompt");
+   const seconds=Number(b.seconds);
+   if(!Number.isInteger(seconds)||seconds<4||seconds>15)fail(400,"Clip length must be an integer 4–15 seconds");
+   const ratio=String(b.aspectRatio||"16:9");if(!ratioOptions.includes(ratio))fail(400,"Invalid aspect ratio");
+   const refsInput:unknown=b.referenceMediaIds??[];
+   if(!Array.isArray(refsInput)||refsInput.length>10||refsInput.some(x=>typeof x!=="string"))fail(400,"Invalid references");
+   const refs=refsInput as string[];
+   await filmExists(film);
+   const scene=b.sceneUnitId?id(String(b.sceneUnitId)):null;
+   if(scene){const p=await db().query("SELECT id FROM script_units WHERE id=$1 AND film_id=$2 AND kind='scene'",[scene,film]);if(!p.rowCount)fail(400,"Scene belongs to another film");}
+   const parent=b.continuationParentClipId?id(String(b.continuationParentClipId)):null;
+   if(parent){const p=await db().query("SELECT id FROM generation_clips WHERE id=$1 AND film_id=$2",[parent,film]);if(!p.rowCount)fail(400,"Continuation parent belongs to another film");}
+   if(refs.length){const found=await db().query("SELECT id FROM media_files WHERE id=ANY($1::uuid[])",[refs.map(x=>id(x))]);if(found.rowCount!==refs.length)fail(400,"Reference media not found");}
+   await db().query("INSERT INTO generation_clips(id,film_id,scene_unit_id,title,prompt,seconds,aspect_ratio,reference_media_ids,continuation_parent_clip_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",[clipId,film,scene,title,prompt,seconds,ratio,JSON.stringify(refs),parent]);
+   return response({id:clipId,filmId:film,title,prompt,seconds,aspectRatio:ratio,continuationParentClipId:parent,version:1},201);
+  }
+ }
+ if(parts[0]==="clips"&&parts.length===3&&parts[2]==="shots"&&method==="GET"){
+  return response((await db().query("SELECT l.*,s.title,s.description FROM clip_shots l JOIN director_shots s ON s.id=l.shot_id WHERE l.clip_id=$1 ORDER BY clip_start_seconds",[id(parts[1])])).rows);
+ }
+ if(parts[0]==="clips"&&parts.length===3&&parts[2]==="shots"&&method==="POST"){
+  const clip=id(parts[1]),b=await json(req),shot=id(required(b.shotId,"Shot ID"));
+  const start=Number(b.clipStartSeconds),end=Number(b.clipEndSeconds);
+  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start)fail(400,"Invalid Shot interval");
+  const pair=await db().query("SELECT c.film_id,c.seconds,s.film_id AS shot_film FROM generation_clips c CROSS JOIN director_shots s WHERE c.id=$1 AND s.id=$2",[clip,shot]);
+  if(!pair.rowCount)fail(404,"Clip or Shot not found");
+  if(pair.rows[0].film_id!==pair.rows[0].shot_film||end>pair.rows[0].seconds)fail(400,"Shot belongs to another film or exceeds Clip");
+  await db().query("INSERT INTO clip_shots(clip_id,shot_id,clip_start_seconds,clip_end_seconds) VALUES($1,$2,$3,$4)",[clip,shot,start,end]);
+  return response({clipId:clip,shotId:shot,start,end},201);
+ }
+ if(parts[0]==="clips"&&parts.length===3&&parts[2]==="runs"){
+  const clip=id(parts[1]);
+  if(method==="GET")return response((await db().query("SELECT r.*,t.id AS take_id,t.media_id FROM video_runs r LEFT JOIN video_takes t ON t.run_id=r.id WHERE r.clip_id=$1 ORDER BY r.created_at DESC",[clip])).rows);
+  if(method==="POST"){
+   const b=await json(req),key=required(req.headers.get("Idempotency-Key")??b.intentKey,"Idempotency-Key");
+   if(key.length<8||key.length>128)fail(400,"Idempotency-Key must contain 8–128 characters");
+   const c=(await db().query("SELECT * FROM generation_clips WHERE id=$1",[clip])).rows[0];
+   if(!c)fail(404,"Clip not found");
+   if(c.continuation_parent_clip_id)fail(409,"This Clip requires native Motion Context continuation. RunningHub does not support it.");
+   const runId=randomUUID();
+   const snap={clipId:clip,prompt:c.prompt,seconds:c.seconds,aspectRatio:c.aspect_ratio,referenceMediaIds:c.reference_media_ids,model:"runninghub-minimax-h3"};
+   const row=await db().query("INSERT INTO video_runs(id,clip_id,provider,intent_key,input_snapshot) VALUES($1,$2,'runninghub',$3,$4) ON CONFLICT(clip_id,intent_key) DO NOTHING RETURNING *",[runId,clip,key,JSON.stringify(snap)]);
+   const result=row.rows[0]??(await db().query("SELECT * FROM video_runs WHERE clip_id=$1 AND intent_key=$2",[clip,key])).rows[0];
+   return response({id:result.id,clipId:clip,status:result.status,providerJobId:result.provider_job_id,alreadyExists:!row.rowCount},row.rowCount?201:200);
+  }
+ }
+ if(parts[0]==="runs"&&parts.length===2&&method==="GET"){
+  const run=id(parts[1]);
+  const r=await db().query("SELECT r.*,c.title AS clip_title,c.seconds,t.id AS take_id,t.media_id FROM video_runs r JOIN generation_clips c ON c.id=r.clip_id LEFT JOIN video_takes t ON t.run_id=r.id WHERE r.id=$1",[run]);
+  if(!r.rowCount)fail(404,"Run not found");
+  return response(r.rows[0]);
+ }
+ if(parts[0]==="runs"&&parts.length===3&&parts[2]==="takes"&&method==="GET"){
+  const run=id(parts[1]);return response((await db().query("SELECT t.*,m.filename,m.mime,m.bytes FROM video_takes t JOIN media_files m ON m.id=t.media_id WHERE t.run_id=$1",[run])).rows);
+ }
+ if(parts[0]==="takes"&&parts.length===3&&parts[2]==="adopt"&&method==="POST"){
+  const take=id(parts[1]),b=await json(req),version=Number(b.expectedClipVersion);
+  if(!Number.isInteger(version)||version<1)fail(400,"expectedClipVersion is required");
+  return response(await transaction(async client=>{
+   const res=await client.query("SELECT t.id,r.clip_id FROM video_takes t JOIN video_runs r ON r.id=t.run_id WHERE t.id=$1 FOR UPDATE OF t",[take]);
+   if(!res.rowCount)fail(404,"Take not found");
+   const clip=res.rows[0].clip_id;
+   const updated=await client.query("UPDATE generation_clips SET adopted_take_id=$1,version=version+1 WHERE id=$2 AND version=$3 RETURNING version",[take,clip,version]);
+   if(!updated.rowCount)fail(409,"Clip modified elsewhere, refresh before adopting");
+   await client.query("UPDATE video_takes SET adopted=(id=$1) WHERE run_id IN(SELECT id FROM video_runs WHERE clip_id=$2)",[take,clip]);
+   return {takeId:take,clipId:clip,version:updated.rows[0].version,adopted:true};
+  }));
+ }
+ if(parts[0]==="films"&&parts.length===3&&parts[2]==="timeline"){
+  const film=id(parts[1]);
+  if(method==="GET")return response((await db().query("SELECT l.*,m.mime,m.filename,c.title AS clip_title FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id LEFT JOIN generation_clips c ON c.id=l.clip_id WHERE l.film_id=$1 ORDER BY position_index",[film])).rows);
+  if(method==="POST"){
+   const b=await json(req),take=id(required(b.takeId,"Take ID")),pos=Number(b.positionIndex);
+   if(!Number.isInteger(pos)||pos<0)fail(400,"Invalid position");
+   await filmExists(film);
+   const result=await db().query("SELECT r.clip_id,c.film_id,t.adopted FROM video_takes t JOIN video_runs r ON r.id=t.run_id JOIN generation_clips c ON c.id=r.clip_id WHERE t.id=$1",[take]);
+   if(!result.rowCount||result.rows[0].film_id!==film)fail(400,"Take does not belong to Film");
+   if(!result.rows[0].adopted)fail(409,"Only an explicitly adopted Take can enter the finishing timeline");
+   const start=Number(b.sourceInSeconds??0),end=b.sourceOutSeconds==null?null:Number(b.sourceOutSeconds);
+   if(start<0||!Number.isFinite(start)||(end!==null&&(!Number.isFinite(end)||end<=start)))fail(400,"Invalid source trim");
+   const segment=randomUUID(),clip=result.rows[0].clip_id;
+   await db().query("INSERT INTO timeline_segments(id,film_id,clip_id,take_id,position_index,source_in_seconds,source_out_seconds) VALUES($1,$2,$3,$4,$5,$6,$7)",[segment,film,clip,take,pos,start,end]);
+   return response({id:segment,filmId:film,takeId:take,positionIndex:pos},201);
+  }
+ }
+ if(parts[0]==="films"&&parts.length===3&&parts[2]==="renders"){
+  const film=id(parts[1]);
+  if(method==="GET")return response((await db().query("SELECT id,film_id,intent_key,status,output_media_id,error,created_at,updated_at FROM renders WHERE film_id=$1 ORDER BY created_at DESC",[film])).rows);
+  if(method==="POST"){
+   const b=await json(req);
+   const intent=required(req.headers.get("Idempotency-Key")??b.intentKey,"Idempotency-Key");
+   if(intent.length<8||intent.length>128)fail(400,"Invalid Render intent key");
+   await filmExists(film);
+   const segments=(await db().query("SELECT l.id,l.position_index,l.take_id,l.source_in_seconds,l.source_out_seconds,m.id AS media_id,m.sha256,m.mime,t.adopted FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id WHERE l.film_id=$1 ORDER BY l.position_index",[film])).rows;
+   if(!segments.length)fail(409,"Timeline has no adopted video segments");
+   if(segments.some(s=>!s.adopted||s.mime!=="video/mp4"))fail(409,"Timeline includes an unadopted or nonvideo Take");
+   const settings={format:"mp4",width:1280,height:720,fps:24,snapshotSegments:segments};
+   const renderId=randomUUID();
+   const row=await db().query("INSERT INTO renders(id,film_id,intent_key,settings) VALUES($1,$2,$3,$4) ON CONFLICT(film_id,intent_key) DO NOTHING RETURNING *",[renderId,film,intent,JSON.stringify(settings)]);
+   const result=row.rows[0]??(await db().query("SELECT * FROM renders WHERE film_id=$1 AND intent_key=$2",[film,intent])).rows[0];
+   return response({id:result.id,status:result.status,filmId:film,alreadyExists:!row.rowCount},row.rowCount?201:200);
+  }
+ }
+ if(parts[0]==="renders"&&parts.length===2&&method==="GET"){
+  const render=id(parts[1]);const r=await db().query("SELECT id,film_id,status,settings,output_media_id,error,created_at,updated_at FROM renders WHERE id=$1",[render]);
+  if(!r.rowCount)fail(404,"Render not found");
+  const value=r.rows[0];
+  return response({...value,outputUrl:value.output_media_id?"/api/media/"+value.output_media_id+"/file":null});
+ }
+ return null;
+}

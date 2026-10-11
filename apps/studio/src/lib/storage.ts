@@ -27,6 +27,18 @@ export async function saveUpload(file:File){
  return {id,filename:file.name,mime:file.type,bytes:bytes.length,sha256:hash,storagePath:filePath,width,height};
 }
 export async function loadMedia(path:string){ return readFile(path); }
+
+/** Store a provider-returned MP4 as a real, durable local media file. */
+export async function saveVideoOutput(bytes:Uint8Array,name="generation.mp4"){
+ if(bytes.byteLength<1024||bytes.byteLength>200*1024*1024)throw new Error("Invalid generated video size");
+ if(Buffer.from(bytes.subarray(4,8)).toString("ascii")!=="ftyp")throw new Error("Video output has no MP4 ftyp header");
+ const id=randomUUID(),hash=createHash("sha256").update(bytes).digest("hex");
+ await mkdir(root,{recursive:true});
+ const filePath=join(root,id+".mp4");
+ await writeFile(filePath,Buffer.from(bytes),{flag:"wx"});
+ return {id,filename:name,mime:"video/mp4",bytes:bytes.byteLength,sha256:hash,storagePath:filePath,width:null,height:null};
+}
+
 export function assetImageQA(kind:string,width?:number|null,height?:number|null){
  if(kind==="voice")return "sample_ready";
  if(!width||!height)return "needs_manual_review";

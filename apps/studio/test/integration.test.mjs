@@ -49,3 +49,30 @@ test("persistent film, immutable scripts, Mock review, and adopted media", {skip
  assert.equal(adopted.status,200);assert.equal(adopted.data.length,1);
  const file=await fetch(origin+upload.data.url);assert.equal(file.status,200);assert.equal((await file.arrayBuffer()).byteLength,png.length);
 });
+
+test("director Shot↔Generation Clip many-to-many, duration rules, genuine continuation gating", {skip:!integration&&"Requires isolated PostgreSQL and a running local application"}, async()=>{
+ const project=await api("/projects","POST",{name:"CW03 test "+randomUUID(),idea:"肖像、镜头与 Clip 分离"});
+ assert.equal(project.status,201);
+ const film=project.data.filmId;
+ const scene=await api("/films/"+film+"/units","POST",{kind:"scene",title:"场景一",content:"演员提起钥匙，保持连续表演"});
+ assert.equal(scene.status,201);
+ const shot=await api("/films/"+film+"/shots","POST",{sceneUnitId:scene.data.id,title:"长镜头跨 Clip",description:"绝不剪切",sequenceNumber:1});
+ assert.equal(shot.status,201);
+ const longClip=await api("/films/"+film+"/clips","POST",{title:"非法 16 秒",prompt:"不允许",seconds:16,aspectRatio:"16:9"});
+ assert.equal(longClip.status,400);
+ const first=await api("/films/"+film+"/clips","POST",{title:"12 秒前段",prompt:"演员从口袋拿出钥匙",seconds:12,aspectRatio:"16:9"});
+ const second=await api("/films/"+film+"/clips","POST",{title:"10 秒后段",prompt:"真正 Motion Context 待自有 H3",seconds:10,aspectRatio:"16:9",continuationParentClipId:first.data.id});
+ assert.equal(first.status,201);assert.equal(second.status,201);
+ const link1=await api("/clips/"+first.data.id+"/shots","POST",{shotId:shot.data.id,clipStartSeconds:0,clipEndSeconds:12});
+ const link2=await api("/clips/"+second.data.id+"/shots","POST",{shotId:shot.data.id,clipStartSeconds:0,clipEndSeconds:10});
+ assert.equal(link1.status,201);assert.equal(link2.status,201);
+ const shots1=await api("/clips/"+first.data.id+"/shots");
+ const shots2=await api("/clips/"+second.data.id+"/shots");
+ assert.equal(shots1.data[0].shot_id,shot.data.id);
+ assert.equal(shots2.data[0].shot_id,shot.data.id);
+ const blocked=await fetch(origin+"/api/clips/"+second.data.id+"/runs",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":"native-continuation-no-fake-run"},body:"{}"});
+ assert.equal(blocked.status,409);
+ const blockedMessage=await blocked.json();assert.match(blockedMessage.error,/Motion Context/);
+ const emptyRender=await fetch(origin+"/api/films/"+film+"/renders",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":"no-timeline-render-guard"},body:"{}"});
+ assert.equal(emptyRender.status,409);
+});

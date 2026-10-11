@@ -58,7 +58,7 @@ export async function dispatch(req:Request,parts:string[]):Promise<Response>{
    await c.query("INSERT INTO script_revisions(id,unit_id,revision_number,content,source) VALUES($1,$2,$3,$4,'mock_ai_adopted')",[revision,p.unit_id,p.base_version+1,p.suggestion]);await c.query("UPDATE script_units SET adopted_revision_id=$2 WHERE id=$1",[p.unit_id,revision]);await c.query("UPDATE ai_proposals SET status='adopted' WHERE id=$1",[id]);return {id,status:"adopted",revisionId:revision,version:p.base_version+1};
   });return send(result);
  }
- if(parts[0]==="films"&&parts[2]==="assets"&&method==="GET")return send(await rows("SELECT a.*,m.filename,m.mime FROM assets a LEFT JOIN asset_revisions r ON r.id=a.adopted_revision_id LEFT JOIN media_files m ON m.id=r.media_id WHERE a.film_id=$1 ORDER BY a.created_at",[uuid(parts[1])]));
+ if(parts[0]==="films"&&parts[2]==="assets"&&method==="GET")return send(await rows("SELECT a.*,m.id AS media_id,m.filename,m.mime FROM assets a LEFT JOIN asset_revisions r ON r.id=a.adopted_revision_id LEFT JOIN media_files m ON m.id=r.media_id WHERE a.film_id=$1 ORDER BY a.created_at",[uuid(parts[1])]));
  if(parts[0]==="films"&&parts[2]==="assets"&&method==="POST"){
   const film=uuid(parts[1]),b=await jsonBody(req);const kind=b.kind;
   if(!["character","location","hero_prop","voice"].includes(String(kind)))throw new HttpError(400,"Invalid asset kind");

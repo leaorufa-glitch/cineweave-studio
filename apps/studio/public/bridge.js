@@ -55,6 +55,10 @@ const loadProjects=async()=>{
  const projects=await api("/projects"),sel=$("cw-project-select");sel.innerHTML='<option value="">选择已有工程</option>';
  projects.forEach(p=>{const o=new Option(p.name,p.id);o.dataset.film=p.film_id;sel.add(o)});
  if(s.project)sel.value=s.project.id;
+ else {
+   const last=localStorage.getItem("cineweave:active-project");
+   if(last){const opt=Array.from(sel.options).find(o=>o.value===last);if(opt){s.project={id:last,filmId:opt.dataset.film};sel.value=last;}}
+ }
 };
 const loadUnits=async()=>{const sel=$("cw-unit-select");sel.innerHTML='<option value="">选择场景</option>';if(!s.project)return;
  const arr=await api("/films/"+s.project.filmId+"/units");arr.forEach(u=>{const o=new Option(u.title+" · v"+u.version,u.id);sel.add(o)});if(s.unit)sel.value=s.unit.id;};
@@ -62,7 +66,14 @@ const loadAssets=async()=>{const sel=$("cw-asset-select");sel.innerHTML='<option
  const arr=await api("/films/"+s.project.filmId+"/assets");arr.forEach(a=>{const o=new Option(a.kind+" / "+a.name+" ["+a.variant+"] v"+a.version,a.id);sel.add(o)});if(s.asset)sel.value=s.asset.id;};
 $("cw-refresh").onclick=task(async()=>{await loadProjects();status("已刷新项目列表")});
 $("cw-new-project").onclick=task(async()=>{const name=$("cw-project-name").value.trim();if(!name)throw Error("填写工程名称");s.project=await api("/projects","POST",{name});s.unit=s.asset=null;await loadProjects();await loadUnits();await loadAssets();status("已创建工程 "+name)});
-$("cw-project-select").onchange=task(async()=>{const id=$("cw-project-select").value;if(!id)return;s.project={id,filmId:$("cw-project-select").selectedOptions[0].dataset.film};s.unit=s.asset=null;await loadUnits();await loadAssets();status("已打开工程 "+$("cw-project-select").selectedOptions[0].text)});
+$("cw-project-select").onchange=task(async()=>{
+ const id=$("cw-project-select").value;if(!id)return;
+ const selected=$("cw-project-select").selectedOptions[0];
+ s.project={id,filmId:selected.dataset.film};localStorage.setItem("cineweave:active-project",id);
+ s.unit=s.asset=null;await loadUnits();await loadAssets();
+ const prototype=window.CWPrototype;if(prototype){prototype.state.project=selected.text;prototype.turnPage(1);}
+ status("已打开正式工程《"+selected.text+"》，数据来自 PostgreSQL");
+});
 $("cw-new-scene").onclick=task(async()=>{if(!s.project)throw Error("先选工程");const title=$("cw-unit-title").value.trim();if(!title)throw Error("填写场景标题");s.unit=await api("/films/"+s.project.filmId+"/units","POST",{kind:"scene",title,content:$("cw-script").value});await loadUnits();status("场景已创建并持久保存 v1")});
 $("cw-load").onclick=task(async()=>{const id=$("cw-unit-select").value;if(!id)throw Error("先选场景");s.unit=await api("/units/"+id);$("cw-script").value=s.unit.content;status("已载入 "+s.unit.title+" v"+s.unit.version)});
 $("cw-save-script").onclick=task(async()=>{if(!s.unit)throw Error("先载入场景");const rev=await api("/units/"+s.unit.id+"/revisions","POST",{expectedVersion:s.unit.version,content:$("cw-script").value});s.unit.version=rev.version;await loadUnits();status("正式剧本 v"+rev.version+" 已保存，旧版仍可追溯")});
@@ -76,5 +87,6 @@ $("cw-upload").onclick=task(async()=>{if(!s.asset)throw Error("请选择资产")
  const rev=await api("/assets/"+s.asset.id+"/revisions","POST",{expectedVersion:s.asset.version,mediaId:uploaded.id,description:"用户上传的正式整板/声音样本"});s.asset.version=rev.version;await loadAssets();
  $("cw-preview").innerHTML="";const e=document.createElement(uploaded.mime.startsWith("image/")?"img":"audio");e.src=uploaded.url;if(e.tagName==="AUDIO")e.controls=true;$("cw-preview").append(e);
  status("已采用正式版本 v"+rev.version+"，QA 状态："+rev.qaStatus+"。版本历史保留。");});
-loadProjects().catch(e=>status("数据库未连接："+e.message));
+window.CWRuntime={s,api,status,loadProjects,loadUnits,loadAssets,showPanel(){document.getElementById("cw-panel").hidden=false;},el:$};
+loadProjects().then(()=>Promise.all([loadUnits(),loadAssets()])).catch(e=>status("数据库未连接："+e.message));
 })();

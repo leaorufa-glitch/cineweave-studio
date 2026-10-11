@@ -11,7 +11,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "worker": "node --experimental-strip-types --env-file=.env.local scripts/worker.ts",
+    "worker:once": "node --experimental-strip-types --env-file=.env.local scripts/worker.ts --once"
   },
   "dependencies": {
     "next": "^16.4.0",
