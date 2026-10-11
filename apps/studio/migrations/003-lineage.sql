@@ -1,0 +1,4 @@
+ALTER TABLE asset_candidates ADD COLUMN IF NOT EXISTS input_snapshot JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE asset_candidates ADD COLUMN IF NOT EXISTS provider_snapshot JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE ai_proposals ADD COLUMN IF NOT EXISTS input_snapshot JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE ai_history ADD COLUMN IF NOT EXISTS input_snapshot JSONB NOT NULL DEFAULT '{}';

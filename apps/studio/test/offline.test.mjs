@@ -5,10 +5,10 @@ import { join,resolve } from "node:path";
 import sharp from "sharp";
 import { assetImageQA, saveUpload } from "../src/lib/storage.ts";
 const baseline=resolve("../../design/approved-ui-2026"),copied=resolve("public/approved");
-test("approved UI source is copied byte-for-byte for all source assets",async()=>{
+test("approved visual resources are unchanged; only HTML injection and runtime compilation differ",async()=>{
  const walk=async root=>{const names=[];async function visit(dir){for(const ent of await readdir(dir,{withFileTypes:true})){const full=join(dir,ent.name);if(ent.isDirectory())await visit(full);else names.push(full.slice(root.length+1));}}await visit(root);return names.sort();};
  const a=await walk(baseline);assert.equal(a.length,25);const b=await walk(copied);assert.deepEqual(a,b);
- for(const name of a){let expected=await readFile(join(baseline,name));let actual=await readFile(join(copied,name));if(name==="index.html"){assert.match(actual.toString(),/bridge\.js/);actual=Buffer.from(actual.toString().replace('<script defer src="/bridge.js"></script><script defer src="/native-actions.js"></script>',''));}if(name==="app.js"){assert.match(actual.toString(),/window\.CWPrototype=/);actual=Buffer.from(actual.toString().replace('\nwindow.CWPrototype={state,projects,assets,scenes,clips,renderApp,turnPage,getAsset,getClip,getProd,toast};\n',''));}assert.deepEqual(actual,expected,name);}
+ for(const name of a){let expected=await readFile(join(baseline,name));let actual=await readFile(join(copied,name));if(name==="index.html"){assert.match(actual.toString(),/workspace\.js/);actual=Buffer.from(actual.toString().replace('<script defer src="/workspace.js"></script>',''));}if(name==="app.js"){expected=Buffer.from(expected.toString().split('const projects=')[0]+'\n/* Production views and persistence: /workspace.js */\n');assert.doesNotMatch(actual.toString(),/simulate-task|const projects=/);}assert.deepEqual(actual,expected,name);}
 });
 test("board QA enforces character 2:3 preview and does not claim grid approval",()=>{
  assert.equal(assetImageQA("character",1024,1536),"needs_grid_review");
@@ -24,7 +24,8 @@ test("real file upload writes actual image bytes and rejects corrupt files",asyn
  assert.equal((await stat(uploaded.storagePath)).size,png.length);
  await assert.rejects(()=>saveUpload(new File(["not an image"],"fake.png",{type:"image/png"})),/Corrupt image/);
 });
-test("baseline bridge exposes persistent flow and mock disclaimer",async()=>{
- const bridge=(await readFile(resolve("public/bridge.js"),"utf8")).toString();
- for(const expected of ["/projects","/films/","/units/","/proposals/","/assets/","/media","Mock AI"])assert.ok(bridge.includes(expected),expected);
+test("production runtime has direct persistent workflows without demo controls",async()=>{
+ const workspace=await readFile(resolve("public/workspace.js"),"utf8");
+ for(const expected of ["/workspace","/revisions","/adopt","timeline-edit","submit-run","aria-busy"])assert.ok(workspace.includes(expected),expected);
+ assert.doesNotMatch(await readFile(resolve("public/approved/index.html"),"utf8"),/bridge\.js|native-actions\.js/);
 });

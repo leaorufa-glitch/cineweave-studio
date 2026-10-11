@@ -3,7 +3,7 @@ import {setTimeout as delay} from "node:timers/promises";
 import assert from "node:assert/strict";
 
 const port=32781, base="http://127.0.0.1:"+port;
-const server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","-p",String(port)],{cwd:process.cwd(),stdio:"ignore"});
+const server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","-p",String(port),"--hostname","127.0.0.1"],{cwd:process.cwd(),stdio:"ignore"});
 let started=false;
 try{
  for(let n=0;n<60;n++){
@@ -12,11 +12,11 @@ try{
   await delay(250);
  }
  assert.ok(started,"Next server did not serve redirect");
- for(const path of ["/approved/index.html","/approved/style.css","/approved/app.js","/bridge.js","/approved/media/hero.jpg"]){
+ for(const path of ["/approved/index.html","/approved/style.css","/approved/app.js","/workspace.js","/approved/media/hero.jpg"]){
   const r=await fetch(base+path);
   assert.equal(r.status,200,path+" status");assert.ok(Number(r.headers.get("content-length")??0)>0||((await r.arrayBuffer()).byteLength>0),path+" empty");
  }
- console.log("PASS HTTP smoke: homepage redirect, approved HTML/CSS/JS, media, persistence bridge.");
+ console.log("PASS HTTP smoke: homepage redirect, approved HTML/CSS/JS, media, production workspace controller.");
 }finally{
  server.kill("SIGTERM");
  await Promise.race([new Promise(resolve=>server.once("exit",resolve)),delay(3000)]);

@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import sharp from 'sharp';
+const base=process.env.CINEWEAVE_TEST_BASE_URL;
+const call=async(p,b)=>{const r=await fetch(base+'/api/'+p,{method:b?'POST':'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});return {status:r.status,data:await r.json()}};
+test('workspace revisions, edited AI proposals, board adoption races and independent speech rates',{skip:!base},async()=>{
+ const project=(await call('projects',{name:'workspace '+randomUUID()})).data,film=project.filmId;
+ const unit=(await call(`films/${film}/units`,{kind:'scene',title:'目标',content:'初稿'})).data;
+ const rev=(await call(`units/${unit.id}/revisions`,{expectedVersion:1,title:'更新目标',content:'新版'})).data;
+ const old=(await call(`units/${unit.id}/revisions`)).data[0];
+ assert.equal((await call(`units/${unit.id}/restore`,{revisionId:old.id,expectedVersion:1})).status,409);
+ assert.equal((await call(`units/${unit.id}/restore`,{revisionId:old.id,expectedVersion:rev.version})).data.version,3);
+ const q=(await call(`units/${unit.id}/proposals`,{direction:'对白'})).data;
+ assert.equal((await call(`proposals/${q.id}/edit`,{expectedEditVersion:1,suggestion:'创作者编辑候选'})).status,200);
+ assert.equal((await call(`proposals/${q.id}/adopt`,{expectedVersion:3,expectedEditVersion:1})).status,409);
+ assert.equal((await call(`proposals/${q.id}/adopt`,{expectedVersion:3,expectedEditVersion:2})).status,200);
+ assert.equal((await call(`units/${unit.id}`)).data.content,'创作者编辑候选');
+ const voice=(await call(`films/${film}/assets`,{kind:'voice',name:'人物声线',variant:'原声',baselineRate:.8})).data;
+ const shot=(await call(`films/${film}/shots`,{title:'对白',description:'静止'})).data;
+ assert.equal((await call(`shots/${shot.id}/edit`,{expectedVersion:1,title:'对白',description:'静止',design:{dialogue:[{speaker:'人物',text:'好的',performanceRate:1.2,pauseSeconds:2}]}})).status,200);
+ assert.equal((await call(`films/${film}/workspace`)).data.assets.find(a=>a.id===voice.id).baseline_rate,'0.8');
+ const png=await sharp({create:{width:100,height:150,channels:3,background:'#234567'}}).png().toBuffer();const form=new FormData();form.append('file',new File([png],'complete-board.png',{type:'image/png'}));const upload=await fetch(base+'/api/media',{method:'POST',body:form}).then(r=>r.json());
+ const asset=(await call(`films/${film}/assets`,{kind:'character',name:'主角',variant:'Look A'})).data;
+ const candidate=(await call(`assets/${asset.id}/upload-candidate`,{mediaId:upload.id})).data;
+ await call(`candidates/${candidate.id}/review`,{status:'accepted',note:'人工确认整张四宫格，身份与服装一致'});
+ const races=await Promise.all([call(`candidates/${candidate.id}/adopt`,{expectedVersion:0}),call(`candidates/${candidate.id}/adopt`,{expectedVersion:0})]);assert.deepEqual(races.map(r=>r.status).sort(),[201,409]);
+ const versions=(await call(`assets/${asset.id}/revisions`)).data;assert.equal(versions.length,1);assert.equal(versions[0].media_id,upload.id);assert.equal(versions[0].content_qa.status,'accepted');
+ const range=await fetch(base+upload.url,{headers:{Range:'bytes=0-9'}});assert.equal(range.status,206);assert.equal((await range.arrayBuffer()).byteLength,10);
+});
+
+test('open access through tunnel hosts and cross-origin browser requests',{skip:!base},async()=>{
+ const headers={Host:'sharing.example.com',Origin:'https://viewer.example.com','Sec-Fetch-Site':'cross-site','X-Forwarded-Host':'sharing.example.com','X-Forwarded-Proto':'https'};
+ const preflight=await fetch(base+'/api/projects',{method:'OPTIONS',headers:{...headers,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'content-type,idempotency-key'}});
+ assert.equal(preflight.status,204);assert.equal(preflight.headers.get('access-control-allow-origin'),'*');assert.match(preflight.headers.get('access-control-allow-methods'),/POST/);assert.equal(preflight.headers.get('access-control-allow-headers'),'*');
+ const name='open access '+randomUUID();
+ const created=await fetch(base+'/api/projects',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({name,idea:'隧道开放访问持久化检查'})});
+ assert.equal(created.status,201);assert.equal(created.headers.get('access-control-allow-origin'),'*');const project=await created.json();assert.ok(project.filmId);
+ const listed=await fetch(base+'/api/projects',{headers});assert.equal(listed.status,200);assert.ok((await listed.json()).some(p=>p.id===project.id&&p.name===name));
+ const workspace=await fetch(base+`/api/films/${project.filmId}/workspace`,{headers});assert.equal(workspace.status,200);
+ const invalid=await fetch(base+'/api/projects',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'[]'});assert.equal(invalid.status,400);assert.equal(invalid.headers.get('access-control-allow-origin'),'*');
+ const png=await sharp({create:{width:100,height:150,channels:3,background:'#345678'}}).png().toBuffer();const form=new FormData();form.append('file',new File([png],'open-board.png',{type:'image/png'}));
+ const uploaded=await fetch(base+'/api/media',{method:'POST',headers,body:form});assert.equal(uploaded.status,201);const media=await uploaded.json();
+ const range=await fetch(base+media.url,{headers:{...headers,Range:'bytes=0-9'}});assert.equal(range.status,206);assert.equal(range.headers.get('access-control-allow-origin'),'*');assert.match(range.headers.get('access-control-expose-headers'),/Content-Range/);assert.equal((await range.arrayBuffer()).byteLength,10);
+});

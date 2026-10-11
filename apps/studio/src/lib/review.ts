@@ -58,11 +58,11 @@ export async function reviewDispatch(req: Request, parts: string[]): Promise<Res
       const b = await body(req), expected = version(b.expectedTakeVersion), reason = text(b.reason, "Reason");
       const time = b.timeSeconds, kind = b.targetKind, target = uuid(b.targetId);
       if (typeof time !== "number" || !Number.isFinite(time) || time < 0 || time > await duration(take.storage_path)) fail(400, "Timecode exceeds actual Take duration");
-      if (!["clip", "shot", "asset"].includes(String(kind))) fail(400, "Invalid feedback target");
+      if (!["clip", "shot", "asset", "take"].includes(String(kind))) fail(400, "Invalid feedback target");
       return send(await transaction(async c => {
         const locked = (await c.query("SELECT review_version FROM video_takes WHERE id=$1 FOR UPDATE", [take.id])).rows[0];
         if (locked.review_version !== expected) fail(409, "Take review changed; reload before saving");
-        let valid = kind === "clip" && target === take.clip_id;
+        let valid = kind === "clip" && target === take.clip_id || kind === "take" && target === take.id;
         if (kind === "shot") valid = Boolean((await c.query("SELECT 1 FROM clip_shots WHERE clip_id=$1 AND shot_id=$2", [take.clip_id, target])).rowCount);
         if (kind === "asset") valid = Boolean((await c.query("SELECT 1 FROM assets WHERE film_id=$1 AND id=$2", [take.film_id, target])).rowCount);
         if (!valid) fail(400, "Feedback target must be this Clip, its Shot, or an asset in this Film");

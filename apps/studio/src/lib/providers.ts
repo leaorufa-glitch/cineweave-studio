@@ -1,10 +1,15 @@
 /* Model gateway contracts. Do not send the server's API key to any browser response. */
 import { Buffer } from "node:buffer";
-export type GatewayErrorFields={status?:number, provider?:string};
+export type GatewayErrorFields={status?:number, provider?:string, requestId?:string};
 export class GatewayError extends Error {
  status:number;
  responseCode?:string;
- constructor(message:string,status=502,responseCode?:string){super(message);this.name="GatewayError";this.status=status;this.responseCode=responseCode;}
+ requestId?:string;
+ constructor(message:string,status=502,responseCode?:string,requestId?:string){super(message);this.name="GatewayError";this.status=status;this.responseCode=responseCode;this.requestId=requestId;}
+}
+function gatewayRequestId(res:Response){
+ const value=res.headers.get('x-request-id')||res.headers.get('request-id')||res.headers.get('trace-id');
+ return value&&/^[A-Za-z0-9_.:-]{1,180}$/.test(value)?value:undefined;
 }
 export function gatewayConfig(){
  const key=process.env.DARL_API_KEY;
@@ -28,11 +33,11 @@ export async function gatewayJson(path:string,body?:unknown,method="POST",timeou
  const res=await gatewayFetch(path, {method, ...(body===undefined?{}:{body:JSON.stringify(body)})}, timeoutMs);
  const text=await res.text();
  let data:Record<string,unknown>={};
- try{data=JSON.parse(text)}catch{if(res.ok)throw new GatewayError("Provider returned invalid JSON",502);}
+ try{data=JSON.parse(text)}catch{if(res.ok)throw new GatewayError("Provider returned invalid JSON",502,"NETWORK_UNCONFIRMED");}
  if(!res.ok){
   // Never surface upstream untrusted output verbatim, as it may contain sensitive headers.
-  const message=typeof data?.message==="string"?data.message:typeof data?.error==="string"?data.error:"Gateway HTTP "+res.status;
-  throw new GatewayError("Gateway error: "+String(message).slice(0,220),res.status>499?502:res.status,String(data.code||""));
+  const requestId=gatewayRequestId(res);
+  throw new GatewayError("Gateway HTTP "+res.status,res.status>499?502:res.status,"HTTP_"+res.status,requestId);
  }
  return data;
 }
@@ -47,7 +52,7 @@ export function validateH3Request(p:{prompt:string,seconds:number,aspectRatio:st
  return {
   model:"runninghub-minimax-h3" as const,
   prompt:p.prompt.trim(),seconds:p.seconds,
-  megapixels:0.2,aspect_ratio:p.aspectRatio,upscale:1,
+  megapixels:0.4,aspect_ratio:p.aspectRatio,upscale:1,
   reference_images:imgs,reference_audio:aud,
   ...(p.referenceVideo?{reference_video:p.referenceVideo}:{})
  };
@@ -57,7 +62,7 @@ export async function generateStorySuggestion(context:string,instruction:string)
  const result=await gatewayJson("/v1/chat/completions",{
   model,temperature:0.7,max_tokens:8192,
   messages:[
-   {role:"system",content:"你是 CineWeave Studio 的专业影视剧本编辑。以具体人物动机、因果动作、结构冲突、潜台词、场景目标和音画可执行性为标准提供可审阅的修改方案。严格保留用户已经明确的原剧情事实，除非用户要求修改。只输出方案文本，不声称已修改正式剧本。"},
+   {role:"system",content:"你是 CineWeave Studio 的专业影视剧本编辑。以具体人物动机、因果动作、结构冲突、潜台词、场景目标和音画可执行性为标准提供可审阅的修改方案。严格保留用户已经明确的原剧情事实，除非用户要求修改。只输出可编辑方案文本，不声称已修改正式剧本或正式工程。你只收到工程文本，没有实际看过图片、视频或听过音轨；不得声称已观察到媒体里的内容、声音或质量。六个工作区共担影视质量责任，根据当前工作区讨论故事、人物、美术、表演、镜头、生成和成片，媒体质量需实际审阅。"},
    {role:"user",content:"当前场景剧本：\n"+context.slice(0,18000)+"\n\n创作者要求：\n"+instruction.slice(0,3000)+"\n\n严格使用【诊断】与【改写】两段标题：诊断段给两条具体问题；改写段只写可拍摄场景剧本，保留具体人物动作、对白和停顿。"}
   ]
  }, "POST",120_000);
@@ -69,7 +74,7 @@ export async function generateStorySuggestion(context:string,instruction:string)
 export async function generateImageBoard(prompt:string,kind:"character"|"location"|"hero_prop"){
  if(!prompt.trim()||prompt.length>10000)throw new GatewayError("Invalid image prompt",400);
  const board=kind==="character"
- ?"输出一张严格 2:3 的完整人物美术四宫格：上左为同一人物正面面部近景，上右为同一人物90度侧面面部近景；下左为不露脸的正面完整服饰造型，下右为不露脸的背面完整服饰造型。每个格子都属于同一个角色和同一套Look，四格均匀，服装与身份一致，不要文字和拼贴外框。"
+ ?"输出一张严格 2:3 的完整人物美术四宫格：上左为同一人物正面面部近景，上右为同一人物90度侧面面部近景；下左为不露脸的正面完整服饰造型，下右为包含头部的背面全身完整造型。每个格子都属于同一个角色和同一套Look，四格均匀，服装与身份一致，不要文字和拼贴外框。"
  :"输出一张完整的上大下三 1+3 参考图板：上半部一幅大主视角占大部分高度；下方横排三个较小画面依次为背向/反向、关键行动区域、侧向空间或功能细节。必须是同一"+(kind==="location"?"真实物理场景、建筑几何与光线状态":"剧情关键道具的结构、材质、比例")+"，不得变成四个不同对象，不要文字。";
  const size=kind==="character"?"1024x1536":"1536x1024";
  const res=await gatewayJson("/v1/images/generations/",{
@@ -81,20 +86,20 @@ export async function generateImageBoard(prompt:string,kind:"character"|"locatio
  if(!data?.[0]?.b64_json)throw new GatewayError("Image model did not return b64_json",502);
  const bytes=Buffer.from(data[0].b64_json,"base64");
  if(bytes.byteLength<1000||bytes.byteLength>60*1024*1024)throw new GatewayError("Image response size invalid",502);
- return {bytes,mime:"image/png" as const,model:process.env.IMAGE_MODEL||"gpt-image-2",revisedPrompt:data[0].revised_prompt||null,usage:res.usage||null};
+ return {bytes,mime:"image/png" as const,model:process.env.IMAGE_MODEL||"gpt-image-2",revisedPrompt:data[0].revised_prompt||null,usage:res.usage||null,inputSnapshot:{model:process.env.IMAGE_MODEL||"gpt-image-2",prompt:board+"\n\n影视美术要求："+prompt,size,quality:"medium",output_format:"png",n:1}};
 }
 export async function uploadRunningHubReference(bytes:Uint8Array,filename:string,mime:string){
  const form=new FormData();form.append("model","runninghub-minimax-h3");form.append("file",new Blob([new Uint8Array(bytes)],{type:mime}),filename);
  const r=await gatewayFetch("/runninghub/v1/uploads",{method:"POST",body:form},120_000);
  let data:Record<string,unknown>={};try{data=await r.json()}catch{}
- if(!r.ok)throw new GatewayError("RunningHub reference upload failed: HTTP "+r.status,502);
+ if(!r.ok)throw new GatewayError("RunningHub reference upload failed: HTTP "+r.status,502,"HTTP_"+r.status,gatewayRequestId(r));
  if(typeof data.id!=="string"||!data.id.startsWith("task_"))throw new GatewayError("RunningHub did not return upload material id",502);
  return {id:data.id,mediaType:data.media_type};
 }
 export async function createRunningHubVideo(prompt:string,seconds:number,aspectRatio:string,referenceImages:string[]=[],referenceAudio:string[]=[],referenceVideo?:string){
  const input=validateH3Request({prompt,seconds,aspectRatio,referenceImages,referenceAudio,referenceVideo});
  const r=await gatewayJson("/v1/videos",input,"POST",120_000);
- if(typeof r.id!=="string"||!r.id)throw new GatewayError("Video gateway did not return task ID",502);
+ if(typeof r.id!=="string"||!r.id)throw new GatewayError("Video gateway did not return task ID",502,"NETWORK_UNCONFIRMED");
  return {id:r.id,status:String(r.status||"queued"),input};
 }
 export async function queryRunningHubVideo(providerId:string){
@@ -103,7 +108,7 @@ export async function queryRunningHubVideo(providerId:string){
  const status=String(r.status||"unknown");
  const allowed=["queued","in_progress","completed","failed"];
  if(!allowed.includes(status))throw new GatewayError("Unknown RunningHub status: "+status,502);
- return {id:String(r.id||providerId),status,progress:Number(r.progress||0),videoUrl:typeof r.video_url==="string"?r.video_url:null,error:typeof r.error==="object"&&r.error!==null?r.error:null};
+ return {id:String(r.id||providerId),status,progress:Number(r.progress||0),videoUrl:typeof r.video_url==="string"?r.video_url:null,error:r.error?{message:"Provider generation failed"}:null};
 }
 export async function downloadRunningHubVideo(providerId:string){
  const res=await gatewayFetch("/v1/videos/"+encodeURIComponent(providerId)+"/content",{method:"GET"},120_000);

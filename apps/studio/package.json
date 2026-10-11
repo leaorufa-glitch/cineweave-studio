@@ -5,15 +5,17 @@
   "private": true,
   "scripts": {
     "sync:prototype": "node scripts/sync-prototype.mjs",
-    "dev": "npm run sync:prototype && next dev",
+    "dev": "npm run migrate && npm run sync:prototype && next dev",
     "build": "npm run sync:prototype && next build",
-    "start": "next start",
+    "start": "npm run migrate && next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "worker": "node --experimental-strip-types --env-file=.env.local scripts/worker.ts",
-    "worker:once": "node --experimental-strip-types --env-file=.env.local scripts/worker.ts --once"
+    "worker": "npm run migrate && node --experimental-strip-types --env-file=.env.local scripts/worker.ts",
+    "worker:once": "node --experimental-strip-types --env-file=.env.local scripts/worker.ts --once",
+    "migrate": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/migrate.ts",
+    "local": "npm run migrate && npm run sync:prototype && node --env-file-if-exists=.env.local scripts/local.mjs"
   },
   "dependencies": {
     "next": "^16.4.0",
