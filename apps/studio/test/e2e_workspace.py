@@ -2,6 +2,7 @@
 import os, json, uuid
 from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
+os.chdir(Path(__file__).resolve().parent.parent)
 base=os.environ.get('CINEWEAVE_TEST_BASE_URL','http://127.0.0.1:32786')
 out=Path(os.environ.get('CINEWEAVE_SCREENSHOT_DIR','/tmp/cineweave-workspace'));out.mkdir(parents=True,exist_ok=True)
 with sync_playwright() as p:

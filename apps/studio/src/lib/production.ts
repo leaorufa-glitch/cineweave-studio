@@ -1,5 +1,6 @@
 import {randomUUID} from "node:crypto";
 import { db,ensureDb,transaction } from "./db";
+import {probeMedia} from "./media-qa";
 import {GatewayError} from "./providers";
 const id=(v:string)=>{if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v))throw new GatewayError("Invalid ID",400);return v;};
 const fail=(s:number,m:string):never=>{throw new GatewayError(m,s);};
@@ -20,7 +21,7 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
    await filmExists(film);
    const scene=b.sceneUnitId?id(String(b.sceneUnitId)):null;
    if(scene){const parent=await db().query("SELECT id FROM script_units WHERE id=$1 AND film_id=$2 AND kind='scene'",[scene,film]);if(!parent.rowCount)fail(400,"Scene belongs to another film");}
-   await db().query("INSERT INTO director_shots(id,film_id,scene_unit_id,title,description,sequence_number) VALUES($1,$2,$3,$4,$5,$6)",[shotId,film,scene,title,String(b.description||""),Number(b.sequenceNumber)||0]);
+   await transaction(async client=>{const s=(await client.query("INSERT INTO director_shots(id,film_id,scene_unit_id,title,description,sequence_number) VALUES($1,$2,$3,$4,$5,$6) RETURNING *",[shotId,film,scene,title,String(b.description||""),Number(b.sequenceNumber)||0])).rows[0];await client.query('INSERT INTO shot_revisions(id,shot_id,revision_number,snapshot) VALUES($1,$2,1,$3)',[randomUUID(),shotId,JSON.stringify(s)]);});
    return response({id:shotId,filmId:film,title,version:1},201);
   }
  }
@@ -52,10 +53,13 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
   const clip=id(parts[1]),b=await json(req),shot=id(required(b.shotId,"Shot ID"));
   const start=Number(b.clipStartSeconds),end=Number(b.clipEndSeconds);
   if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start)fail(400,"Invalid Shot interval");
-  const pair=await db().query("SELECT c.film_id,c.seconds,s.film_id AS shot_film FROM generation_clips c CROSS JOIN director_shots s WHERE c.id=$1 AND s.id=$2",[clip,shot]);
-  if(!pair.rowCount)fail(404,"Clip or Shot not found");
-  if(pair.rows[0].film_id!==pair.rows[0].shot_film||end>pair.rows[0].seconds)fail(400,"Shot belongs to another film or exceeds Clip");
-  await db().query("INSERT INTO clip_shots(clip_id,shot_id,clip_start_seconds,clip_end_seconds) VALUES($1,$2,$3,$4)",[clip,shot,start,end]);
+  await transaction(async client=>{
+   const pair=await client.query("SELECT c.film_id,c.seconds,c.version,s.film_id AS shot_film FROM generation_clips c CROSS JOIN director_shots s WHERE c.id=$1 AND s.id=$2 FOR UPDATE OF c",[clip,shot]);
+   if(!pair.rowCount)fail(404,"Clip or Shot not found");if(pair.rows[0].film_id!==pair.rows[0].shot_film||end>pair.rows[0].seconds)fail(400,"Shot belongs to another film or exceeds Clip");if(b.expectedVersion!=null&&Number(b.expectedVersion)!==pair.rows[0].version)fail(409,'Clip changed');
+   await client.query("INSERT INTO clip_shots(clip_id,shot_id,clip_start_seconds,clip_end_seconds) VALUES($1,$2,$3,$4)",[clip,shot,start,end]);
+   const current=(await client.query('UPDATE generation_clips SET version=version+1 WHERE id=$1 RETURNING *',[clip])).rows[0];const links=(await client.query('SELECT * FROM clip_shots WHERE clip_id=$1 ORDER BY clip_start_seconds',[clip])).rows;
+   await client.query('INSERT INTO clip_revisions(id,clip_id,revision_number,snapshot) VALUES($1,$2,$3,$4)',[randomUUID(),clip,current.version,JSON.stringify({...current,shots:links})]);
+  });
   return response({clipId:clip,shotId:shot,start,end},201);
  }
  if(parts[0]==="clips"&&parts.length===3&&parts[2]==="runs"){
@@ -67,15 +71,17 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
    const outcome=await transaction(async client=>{
     const c=(await client.query("SELECT * FROM generation_clips WHERE id=$1 FOR UPDATE",[clip])).rows[0];if(!c)fail(404,"Clip not found");
     const previous=(await client.query("SELECT * FROM video_runs WHERE clip_id=$1 AND intent_key=$2",[clip,key])).rows[0];if(previous)return {result:previous,created:false};
+    if((await client.query("SELECT id FROM video_runs WHERE clip_id=$1 AND status IN ('preparing','submitting','submission_unknown')",[clip])).rowCount)fail(409,'Resolve the existing submission before creating another paid Run');
     if(c.continuation_parent_clip_id)fail(409,"This Clip requires native Motion Context continuation. RunningHub does not support it.");
     const mediaIds=c.reference_media_ids as string[];
-    const references=(await client.query("SELECT DISTINCT ON (m.id) m.id AS media_id,m.sha256,m.mime,r.id AS revision_id,r.revision_number,r.content_qa,a.id AS asset_id,a.name,a.kind,a.variant,a.baseline_rate FROM asset_revisions r JOIN assets a ON a.id=r.asset_id JOIN media_files m ON m.id=r.media_id WHERE a.film_id=$1 AND r.media_id=ANY($2::uuid[]) ORDER BY m.id,r.created_at DESC",[c.film_id,mediaIds])).rows;
+    const selectedRevisions=Array.isArray(c.plan?.referenceRevisionIds)?c.plan.referenceRevisionIds:[];
+    const references=(await client.query("SELECT DISTINCT ON (m.id) m.id AS media_id,m.sha256,m.mime,r.id AS revision_id,r.revision_number,r.content_qa,a.id AS asset_id,COALESCE(r.metadata->>'name',a.name) AS name,a.kind,COALESCE(r.metadata->>'variant',a.variant) AS variant,r.description,COALESCE((r.metadata->>'baselineRate')::numeric,a.baseline_rate) AS baseline_rate FROM asset_revisions r JOIN assets a ON a.id=r.asset_id JOIN media_files m ON m.id=r.media_id WHERE a.film_id=$1 AND r.media_id=ANY($2::uuid[]) AND (cardinality($3::uuid[])=0 OR r.id=ANY($3::uuid[])) ORDER BY m.id,r.created_at DESC",[c.film_id,mediaIds,selectedRevisions])).rows;
     if(mediaIds.some(id=>!references.some(r=>r.media_id===id)))fail(400,"Reference must be a formal media version in this Film");
     if(references.some(r=>r.content_qa?.status==='needs_changes'))fail(409,"Reference asset needs changes");
     if(references.filter(r=>r.mime.startsWith('image/')).length>6||references.filter(r=>r.mime.startsWith('audio/')).length>3)fail(400,"RunningHub supports up to six images and three audio references");
     const shots=(await client.query("SELECT l.*,s.version,s.title,s.description,s.design FROM clip_shots l JOIN director_shots s ON s.id=l.shot_id WHERE clip_id=$1 ORDER BY clip_start_seconds",[clip])).rows;
     const script=(await client.query("SELECT u.id,u.title,u.version,u.adopted_revision_id,r.content FROM script_units u LEFT JOIN script_revisions r ON r.id=u.adopted_revision_id WHERE u.film_id=$1 ORDER BY position",[c.film_id])).rows;
-    const snap={clipId:clip,clipVersion:c.version,filmId:c.film_id,prompt:c.prompt,seconds:c.seconds,aspectRatio:c.aspect_ratio,referenceMediaIds:mediaIds,references,shots,script,plan:c.plan,model:"runninghub-minimax-h3",routeRole:'temporary_test',nativeContinuation:false};
+    const snap={clipId:clip,clipVersion:c.version,filmId:c.film_id,prompt:c.prompt,seconds:c.seconds,aspectRatio:c.aspect_ratio,referenceMediaIds:mediaIds,references,shots,script,plan:c.plan,model:"runninghub-minimax-h3",routeRole:'temporary_test',nativeContinuation:false,preferences:{targetResolution:'480P',steps:20},routeParameters:{megapixels:0.4,upscale:1,stepsExposed:false}};
     const result=(await client.query("INSERT INTO video_runs(id,clip_id,provider,intent_key,input_snapshot) VALUES($1,$2,'runninghub',$3,$4) RETURNING *",[randomUUID(),clip,key,JSON.stringify(snap)])).rows[0];return {result,created:true};
    });
    const {result,created}=outcome;
@@ -113,18 +119,15 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
   const film=id(parts[1]);
   if(method==="GET")return response((await db().query("SELECT l.*,m.id AS media_id,m.mime,m.filename,c.title AS clip_title FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id LEFT JOIN generation_clips c ON c.id=l.clip_id WHERE l.film_id=$1 ORDER BY position_index",[film])).rows);
   if(method==="POST"){
-   const b=await json(req),take=id(required(b.takeId,"Take ID")),pos=Number(b.positionIndex);
-   if(!Number.isInteger(pos)||pos<0)fail(400,"Invalid position");
-   await filmExists(film);
-   const result=await db().query("SELECT r.clip_id,c.film_id,t.adopted,t.qa_status FROM video_takes t JOIN video_runs r ON r.id=t.run_id JOIN generation_clips c ON c.id=r.clip_id WHERE t.id=$1",[take]);
-   if(!result.rowCount||result.rows[0].film_id!==film)fail(400,"Take does not belong to Film");
-   if(!result.rows[0].adopted)fail(409,"Only an explicitly adopted Take can enter the finishing timeline");
-   if(result.rows[0].qa_status==='needs_changes')fail(409,"Take needs changes; finish review before adding to timeline");
-   const start=Number(b.sourceInSeconds??0),end=b.sourceOutSeconds==null?null:Number(b.sourceOutSeconds);
-   if(start<0||!Number.isFinite(start)||(end!==null&&(!Number.isFinite(end)||end<=start)))fail(400,"Invalid source trim");
-   const segment=randomUUID(),clip=result.rows[0].clip_id;
-   await db().query("INSERT INTO timeline_segments(id,film_id,clip_id,take_id,position_index,source_in_seconds,source_out_seconds) VALUES($1,$2,$3,$4,$5,$6,$7)",[segment,film,clip,take,pos,start,end]);
-   return response({id:segment,filmId:film,takeId:take,positionIndex:pos},201);
+   const b=await json(req),take=id(required(b.takeId,"Take ID")),pos=Number(b.positionIndex);if(!Number.isInteger(pos)||pos<0)fail(400,'Invalid position');
+   const result=await transaction(async client=>{
+    const f=(await client.query('SELECT * FROM films WHERE id=$1 FOR UPDATE',[film])).rows[0];if(!f)fail(404,'Film not found');if(b.expectedTimelineVersion!=null&&Number(b.expectedTimelineVersion)!==f.timeline_version)fail(409,'Timeline changed');
+    const t=(await client.query('SELECT t.*,r.clip_id,c.film_id,m.storage_path,m.technical_qa FROM video_takes t JOIN video_runs r ON r.id=t.run_id JOIN generation_clips c ON c.id=r.clip_id JOIN media_files m ON m.id=t.media_id WHERE t.id=$1 FOR SHARE OF t',[take])).rows[0];
+    if(!t||t.film_id!==film)fail(400,'Take does not belong to Film');if(!t.adopted||t.qa_status==='needs_changes')fail(409,'Only adopted non-rejected Takes can enter timeline');
+    const qa=t.technical_qa??await probeMedia(t.storage_path),start=Number(b.sourceInSeconds??0),end=Number(b.sourceOutSeconds??qa.duration);if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start||end>Number(qa.duration)+.1)fail(400,'Invalid source trim');const segment=randomUUID();
+    await client.query('INSERT INTO timeline_segments(id,film_id,clip_id,take_id,position_index,source_in_seconds,source_out_seconds) VALUES($1,$2,$3,$4,$5,$6,$7)',[segment,film,t.clip_id,take,pos,start,end]);await client.query('UPDATE films SET timeline_version=timeline_version+1 WHERE id=$1',[film]);
+    const snapshot=(await client.query('SELECT * FROM timeline_segments WHERE film_id=$1 ORDER BY position_index,created_at',[film])).rows;await client.query('INSERT INTO timeline_revisions(id,film_id,revision_number,snapshot) VALUES($1,$2,$3,$4)',[randomUUID(),film,f.timeline_version+1,JSON.stringify(snapshot)]);return {id:segment,filmId:film,takeId:take,positionIndex:pos,version:f.timeline_version+1};
+   });return response(result,201);
   }
  }
  if(parts[0]==="films"&&parts.length===3&&parts[2]==="renders"){
@@ -139,7 +142,7 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
     const existing=(await client.query('SELECT * FROM renders WHERE film_id=$1 AND intent_key=$2',[film,intent])).rows[0];if(existing)return {result:existing,created:false};
     const segments=(await client.query("SELECT l.id,l.position_index,l.take_id,l.source_in_seconds,l.source_out_seconds,l.volume,l.fade_in_seconds,l.fade_out_seconds,m.id AS media_id,m.sha256,m.mime,m.technical_qa,t.adopted,t.qa_status FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id WHERE l.film_id=$1 ORDER BY l.position_index FOR SHARE OF t",[film])).rows;
     if(!segments.length)fail(409,"Timeline has no adopted video segments");if(segments.some(s=>!s.adopted||s.mime!=="video/mp4"||s.qa_status==='needs_changes'))fail(409,"Timeline includes an unadopted or rejected Take");
-    const settings={format:'mp4',width:1280,height:720,fps:24,timelineVersion:f.timeline_version,snapshotSegments:segments};
+    const settings={format:'mp4',width:1280,height:720,fps:24,timelineVersion:f.timeline_version,qualityStatus:segments.every(s=>s.qa_status==='accepted')?'reviewed':'needs_review',snapshotSegments:segments};
     const result=(await client.query('INSERT INTO renders(id,film_id,intent_key,settings) VALUES($1,$2,$3,$4) RETURNING *',[randomUUID(),film,intent,JSON.stringify(settings)])).rows[0];return {result,created:true};
    });
    return response({id:outcome.result.id,status:outcome.result.status,filmId:film,alreadyExists:!outcome.created},outcome.created?201:200);

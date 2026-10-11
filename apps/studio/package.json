@@ -14,7 +14,8 @@
     "smoke": "node scripts/smoke.mjs",
     "worker": "npm run migrate && node --experimental-strip-types --env-file=.env.local scripts/worker.ts",
     "worker:once": "node --experimental-strip-types --env-file=.env.local scripts/worker.ts --once",
-    "migrate": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/migrate.ts"
+    "migrate": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/migrate.ts",
+    "local": "npm run migrate && npm run sync:prototype && node --env-file-if-exists=.env.local scripts/local.mjs"
   },
   "dependencies": {
     "next": "^16.4.0",

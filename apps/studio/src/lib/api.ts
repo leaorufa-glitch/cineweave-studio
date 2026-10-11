@@ -32,7 +32,7 @@ export async function dispatch(req:Request,parts:string[]):Promise<Response>{
   const id=randomUUID(),revision=randomUUID(),title=required(b.title,"Title"),content=typeof b.content==="string"?b.content:"",parent=b.parentId?uuid(b.parentId):null;
   await transaction(async c=>{if(parent){const res=await c.query("SELECT id FROM script_units WHERE id=$1 AND film_id=$2 AND kind='scene'",[parent,film]);if(!res.rowCount)throw new HttpError(400,"Invalid parent scene");}
    await c.query("INSERT INTO script_units(id,film_id,kind,parent_id,title,position,adopted_revision_id) VALUES($1,$2,$3,$4,$5,$6,$7)",[id,film,kind,parent,title,Number(b.position)||0,revision]);
-   await c.query("INSERT INTO script_revisions(id,unit_id,revision_number,content,source) VALUES($1,$2,1,$3,'creator')",[revision,id,content]);});
+   await c.query("INSERT INTO script_revisions(id,unit_id,revision_number,content,source,title) VALUES($1,$2,1,$3,'creator',$4)",[revision,id,content,title]);});
   return send({id,kind,title,content,version:1},201);
  }
  if(parts[0]==="units"&&parts[2]==="revisions"&&method==="GET")return send(await rows("SELECT * FROM script_revisions WHERE unit_id=$1 ORDER BY revision_number",[uuid(parts[1])]));
@@ -56,7 +56,7 @@ export async function dispatch(req:Request,parts:string[]):Promise<Response>{
    if(b.expectedEditVersion!=null&&p.edit_version!==optimistic(b.expectedEditVersion))throw new HttpError(409,'Candidate changed; refresh');
    const revision=randomUUID(),actualVersion=optimistic(b.expectedVersion);if(actualVersion!==p.base_version)throw new HttpError(409,"Proposal based on stale script");
    const u=await c.query("UPDATE script_units SET version=version+1 WHERE id=$1 AND version=$2 RETURNING version",[p.unit_id,p.base_version]);if(!u.rowCount)throw new HttpError(409,"Stale script version");
-   await c.query("INSERT INTO script_revisions(id,unit_id,revision_number,content,source) VALUES($1,$2,$3,$4,$5)",[revision,p.unit_id,p.base_version+1,p.suggestion,p.model==="mock"?"mock_ai_adopted":"ai_adopted:"+p.model]);await c.query("UPDATE script_units SET adopted_revision_id=$2 WHERE id=$1",[p.unit_id,revision]);await c.query("UPDATE ai_proposals SET status='adopted' WHERE id=$1",[id]);return {id,status:"adopted",revisionId:revision,version:p.base_version+1};
+   await c.query("INSERT INTO script_revisions(id,unit_id,revision_number,content,source,title) VALUES($1,$2,$3,$4,$5,(SELECT title FROM script_units WHERE id=$2))",[revision,p.unit_id,p.base_version+1,p.suggestion,p.model==="mock"?"mock_ai_adopted":"ai_adopted:"+p.model]);await c.query("UPDATE script_units SET adopted_revision_id=$2 WHERE id=$1",[p.unit_id,revision]);await c.query("UPDATE ai_proposals SET status='adopted' WHERE id=$1",[id]);return {id,status:"adopted",revisionId:revision,version:p.base_version+1};
   });return send(result);
  }
  if(parts[0]==="films"&&parts[2]==="assets"&&method==="GET")return send(await rows("SELECT a.*,m.id AS media_id,m.filename,m.mime FROM assets a LEFT JOIN asset_revisions r ON r.id=a.adopted_revision_id LEFT JOIN media_files m ON m.id=r.media_id WHERE a.film_id=$1 ORDER BY a.created_at",[uuid(parts[1])]));
@@ -76,8 +76,8 @@ export async function dispatch(req:Request,parts:string[]):Promise<Response>{
    if(media&&!m)throw new HttpError(404,"Media not found");
    if(a.kind!=="voice"&&(!m||!m.mime.startsWith("image/")))throw new HttpError(400,"Image board required");
    if(a.kind==="voice"&&m&&!m.mime.startsWith("audio/"))throw new HttpError(400,"Voice sample must be audio");
-   const revision=randomUUID(),qa=assetImageQA(a.kind,m?.width,m?.height);
-   await c.query("INSERT INTO asset_revisions(id,asset_id,revision_number,media_id,description,qa_status) VALUES($1,$2,$3,$4,$5,$6)",[revision,asset,version+1,media,desc,qa]);
+   const revision=randomUUID(),qa=assetImageQA(a.kind,m?.width,m?.height);if(qa==="wrong_aspect")throw new HttpError(409,"Character board must be a complete 2:3 image");
+   await c.query("INSERT INTO asset_revisions(id,asset_id,revision_number,media_id,description,qa_status,metadata) VALUES($1,$2,$3,$4,$5,$6,$7)",[revision,asset,version+1,media,desc,qa,JSON.stringify({name:a.name,variant:a.variant,baselineRate:a.baseline_rate})]);
    await c.query("UPDATE assets SET version=version+1, adopted_revision_id=$2 WHERE id=$1",[asset,revision]);
    return {id:revision,version:version+1,qaStatus:qa,mediaId:media};
   });return send(result,201);

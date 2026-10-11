@@ -46,7 +46,7 @@ export function validateH3Request(p:{prompt:string,seconds:number,aspectRatio:st
  return {
   model:"runninghub-minimax-h3" as const,
   prompt:p.prompt.trim(),seconds:p.seconds,
-  megapixels:0.2,aspect_ratio:p.aspectRatio,upscale:1,
+  megapixels:0.4,aspect_ratio:p.aspectRatio,upscale:1,
   reference_images:imgs,reference_audio:aud,
   ...(p.referenceVideo?{reference_video:p.referenceVideo}:{})
  };
@@ -56,7 +56,7 @@ export async function generateStorySuggestion(context:string,instruction:string)
  const result=await gatewayJson("/v1/chat/completions",{
   model,temperature:0.7,max_tokens:8192,
   messages:[
-   {role:"system",content:"你是 CineWeave Studio 的专业影视剧本编辑。以具体人物动机、因果动作、结构冲突、潜台词、场景目标和音画可执行性为标准提供可审阅的修改方案。严格保留用户已经明确的原剧情事实，除非用户要求修改。只输出方案文本，不声称已修改正式剧本。"},
+   {role:"system",content:"你是 CineWeave Studio 的专业影视剧本编辑。以具体人物动机、因果动作、结构冲突、潜台词、场景目标和音画可执行性为标准提供可审阅的修改方案。严格保留用户已经明确的原剧情事实，除非用户要求修改。只输出可编辑方案文本，不声称已修改正式剧本或正式工程。你只收到工程文本，没有实际看过图片、视频或听过音轨；不得声称已观察到媒体里的内容、声音或质量。六个工作区共担影视质量责任，根据当前工作区讨论故事、人物、美术、表演、镜头、生成和成片，媒体质量需实际审阅。"},
    {role:"user",content:"当前场景剧本：\n"+context.slice(0,18000)+"\n\n创作者要求：\n"+instruction.slice(0,3000)+"\n\n严格使用【诊断】与【改写】两段标题：诊断段给两条具体问题；改写段只写可拍摄场景剧本，保留具体人物动作、对白和停顿。"}
   ]
  }, "POST",120_000);

@@ -3,7 +3,7 @@ import {rm} from 'node:fs/promises';
 import {db,ensureDb,transaction} from './db.ts';
 import {loadMedia,saveVideoOutput} from './storage.ts';
 import {probeMedia} from './media-qa.ts';
-import {createRunningHubVideo,downloadRunningHubVideo,queryRunningHubVideo,uploadRunningHubReference,GatewayError,validateH3Request} from './providers.ts';
+import {createRunningHubVideo,downloadRunningHubVideo,queryRunningHubVideo,uploadRunningHubReference,GatewayError,validateH3Request,gatewayConfig} from './providers.ts';
 export type Run={id:string,clip_id:string,status:string,lease_token:string,provider_job_id:string|null,input_snapshot:{prompt:string,seconds:number,aspectRatio:string,referenceMediaIds:string[],references?:Array<{media_id:string,sha256:string}>}};
 export type VideoProvider={upload:typeof uploadRunningHubReference,create:typeof createRunningHubVideo,query:typeof queryRunningHubVideo,download:typeof downloadRunningHubVideo};
 const live:VideoProvider={upload:uploadRunningHubReference,create:createRunningHubVideo,query:queryRunningHubVideo,download:downloadRunningHubVideo};
@@ -29,6 +29,7 @@ export async function withJobHeartbeat<T>(table:'video_runs'|'renders',id:string
 export async function submitVideo(run:Run,provider:VideoProvider=live){
  let submissionStarted=false;
  try{
+  if(provider===live)gatewayConfig();
   const images:string[]=[],audio:string[]=[];let video:string|undefined;const uploaded=[];
   for(const mediaId of run.input_snapshot.referenceMediaIds??[]){
    const m=(await db().query('SELECT * FROM media_files WHERE id=$1',[mediaId])).rows[0];if(!m)throw new Error('Reference missing');const bytes=await loadMedia(m.storage_path),frozen=run.input_snapshot.references?.find(x=>x.media_id===mediaId);
