@@ -29,10 +29,20 @@ npm run local
 | Art | Character Look, location state, hero prop, VoiceIdentity; create/edit, real GPT Image 2/uploaded candidates, full-board preview/adoption/history, independent baseline rate |
 | Director | Shared versioned Shot: intent, performance, action, camera, sound; dialogue performance rate and independent pause |
 | Planning | 4–15s Clip, multiple Shot intervals, same Shot editing, current/historical formal asset references; blocked native continuation planning |
-| Generation | Idempotent real Run, query/download/status, multiple Take players, frozen input/source snapshots, unknown-submission reconciliation, download-only retry |
+| Generation | Shared five-mode H3 compiler, reviewed and frozen input, verified-route Run gate, idempotent submission, query/download/status, multiple Take players, unknown-submission reconciliation, download-only retry |
 | Review | Take playback, timecode problems linked to Shot/Clip/Asset/Take, resolution/history/source navigation, adoption, ordering/trim/volume/fades and real FFmpeg MP4 download |
 
 AI discussions persist with current Film/workspace text context; they are suggestions, not visual/audio observations. Board dimension and content QA are separate; formal boards remain whole. VoiceIdentity baseline is independent of director rate/pause. New RunningHub submissions use 0.4MP as an approximate 480P target; actual dimensions are measured, not promised. The route does not expose a steps parameter, so the 20-step preference is preserved without inventing an upstream field. The earlier live sample was generated at 0.2MP.
+
+## H3 Prompt 编译与冻结
+
+第四区编辑 Clip 的 **Audiovisual Execution Plan V1**（当前使用 JSON 编辑器）：`style`、`opening`、定时 `beats`、`soundscape`、`music`、`directorConstraints` 和 `referenceUses`。每个 Beat 必须引用现有 Director Shot ID；同一 Shot 内的多个 Beat 不代表切镜。正式参考资产先选择 Asset Revision，再在 `referenceUses` 中按 revision ID 写真实用途、Subject 和保留关系。第四区按钮只做共享编译器预览，不冻结输入。
+
+第五区选择 T2VA、I2VA、FL2VA、L2VA 或 Ref2VA 及 Provider，检查 Prompt、引用映射、来源与校验结果，点击“确认并冻结此输入”。冻结记录包含 Clip/Shot/剧本版本、MediaFile 哈希、官方规则版本、Prompt 和确定性上传顺序。修改上游后需要重新预览及冻结；旧冻结记录和旧 Run 不回写。选择冻结输入后，明确点击提交才会创建 Run。Worker 只读 Run 快照，沿用原有幂等键和未知提交保护。
+
+当前仅 `runninghub-minimax-h3` 的 **T2VA 无参考模式**标记为已验证可提交。其余四模式、Ref2VA 引用语义和自有 H3 原生续接可离线预览与冻结供审阅，但提交被阻断，等待真实 Provider 协议和实测。冻结不代表可提交。旧 Run 的原快照仍可查看；新 Run 必须提供 `compiledInputId`，不会回填或重发历史任务。`004-h3-compiler.sql` 是加法迁移；生产前须同时备份 PostgreSQL 与私有媒体。
+
+离线复现《再走一秒》六段对照：在本目录执行 `node scripts/h3-six-clips-offline.mjs`，完整 Prompt 和引用映射写入仓库根目录 `output/h3-recovery-20261012/six-clips-offline/`，不访问模型服务。正式规范及差异见 `../../docs/integrations/H3-PROMPT-SPEC.md` 和 `../../docs/integrations/H3-OFFICIAL-CINEWEAVE-DIFFERENCES.md`。
 
 ## Reliability and private media
 

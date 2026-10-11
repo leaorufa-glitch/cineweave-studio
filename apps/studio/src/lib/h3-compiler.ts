@@ -57,7 +57,8 @@ function referenceMap(input:CompileInput,issues:Issue[]):ReferenceMapEntry[]{
  }
  // Picture 1 and Picture 2 are determined by their actual keyframe roles, never checkbox order.
  const priority=(r:FormalReference)=>{const role=byRevision.get(r.revisionId)?.role;return r.mime.startsWith('image/')?(role==='first_frame'?0:role==='last_frame'?1:2):r.mime.startsWith('video/')?3:4;};
- const ordered=[...input.references].sort((a,b)=>priority(a)-priority(b)||a.assetId.localeCompare(b.assetId)||a.revisionId.localeCompare(b.revisionId));
+ const kindOrder=(r:FormalReference)=>({character:0,location:1,hero_prop:2,voice:3})[r.assetKind]??4;
+ const ordered=[...input.references].sort((a,b)=>priority(a)-priority(b)||kindOrder(a)-kindOrder(b)||a.assetId.localeCompare(b.assetId)||a.revisionId.localeCompare(b.revisionId));
  const counters={Picture:0,Video:0,Audio:0,Subject:0};
  const result:ReferenceMapEntry[]=[];
  for(const [index,ref] of ordered.entries()){

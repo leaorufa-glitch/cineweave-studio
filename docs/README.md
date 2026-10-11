@@ -36,6 +36,9 @@
 | [V1.3-13 H3 生成制作引擎](v1.3/13-H3-GENERATION-ENGINE-AND-RUN-LIFECYCLE.md) | **集中审定草案** | 两种 H3 编译器、图板/声音模式、异步 DAG、Run/Take 和真续接边界 |
 | [V1.3-14 审片与成片规范](v1.3/14-REVIEW-TIMELINE-FINISHING-V1.md) | **集中审定草案** | Take 审片、音画连续性、时间码反馈、非破坏性轻剪辑、真实导出 |
 | [H3 / GPT Image 2 路由文档核验](integrations/H3-ROUTE-CAPABILITY-AUDIT-2026-10-10.md) | **公开文档级已核对，项目接口未实测** | 自部署 MiniMax-H3 与 RunningHub 参数区别、素材上传和二次采样/真续接差异 |
+| [MiniMax H3 官方 Prompt 规范](integrations/H3-PROMPT-SPEC.md) | **官方 Prompt Skill 固定版本已核实** | 五模式字段、引用、声音、时间码及 Provider 提交边界 |
+| [官方规范与中文增强差异](integrations/H3-OFFICIAL-CINEWEAVE-DIFFERENCES.md) | **部分对照，中文原文件待取得** | 明确官方字段优先级和专业计划的增强范围 |
+| [H3 编译器施工与六 Clip 离线验收](execution/CW-H3-PROMPT-RECOVERY-02.md) | **代码与离线技术验收完成** | 阶段提交、备份、测试和未支持能力 |
 | [V1.2/V1.3 关键设计决策简报](DESIGN-REVIEW-BRIEF-V1.2-V1.3.md) | **五项方向已批准；其他设计仍是草案** | 2026-10-10 正式确认 R-01～R-05 |
 | [正式产品决策 PD-001～PD-005](decisions/2026-10-10-FIVE-PRODUCT-DIRECTIONS.md) | **已确认** | 深度剧本共创、全程专业 AI、授权尺度、多集基础、轻量成片 |
 | [正式人物图片决策 PD-006](decisions/2026-10-10-CHARACTER-GRID-LOOK.md) | **已确认** | 所有正式人物、每个服装装造 Look 一张完整 2×2 四宫格、不拆四张单图 |

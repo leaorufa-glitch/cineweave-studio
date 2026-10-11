@@ -76,12 +76,14 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
   const clip=id(parts[1]);
   if(method==="GET")return response((await db().query("SELECT r.*,t.id AS take_id,t.media_id FROM video_runs r LEFT JOIN video_takes t ON t.run_id=r.id WHERE r.clip_id=$1 ORDER BY r.created_at DESC",[clip])).rows);
   if(method==="POST"){
-   const b=await json(req),key=required(req.headers.get("Idempotency-Key")??b.intentKey,"Idempotency-Key"),compiledInputId=id(required(b.compiledInputId,'Frozen compilation ID'));
+   const b=await json(req),key=required(req.headers.get("Idempotency-Key")??b.intentKey,"Idempotency-Key");
    if(key.length<8||key.length>128)fail(400,"Idempotency-Key must contain 8–128 characters");
    const outcome=await transaction(async client=>{
     const c=(await client.query("SELECT * FROM generation_clips WHERE id=$1 FOR UPDATE",[clip])).rows[0];if(!c)fail(404,"Clip not found");
     const previous=(await client.query("SELECT * FROM video_runs WHERE clip_id=$1 AND intent_key=$2",[clip,key])).rows[0];if(previous)return {result:previous,created:false};
+    if(c.continuation_parent_clip_id)fail(409,'Native Motion Context continuation has no verified Provider contract');
     if((await client.query("SELECT id FROM video_runs WHERE clip_id=$1 AND status IN ('waiting_submit','preparing','submitting','submission_unknown','queued','in_progress','awaiting_media','media_failed')",[clip])).rowCount)fail(409,'Resolve the existing submission or retrieve its media before creating another paid Run');
+    const compiledInputId=id(required(b.compiledInputId,'Frozen compilation ID'));
     const {frozen,input,compiled}=await verifiedFrozenInput(client,clip,compiledInputId,c.version);
     const mediaIds=compiled.referenceMap.map(r=>r.mediaId);
     const references=compiled.referenceMap.map(r=>({media_id:r.mediaId,sha256:r.sha256,mime:r.mime,revision_id:r.revisionId,asset_id:r.assetId,label:r.label,role:r.role,upload_index:r.uploadIndex}));
