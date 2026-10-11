@@ -10,7 +10,7 @@
     "start": "npm run migrate && next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
     "smoke": "node scripts/smoke.mjs",
     "worker": "npm run migrate && node --experimental-strip-types --env-file=.env.local scripts/worker.ts",
     "worker:once": "node --experimental-strip-types --env-file=.env.local scripts/worker.ts --once",

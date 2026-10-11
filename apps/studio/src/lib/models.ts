@@ -23,7 +23,7 @@ export async function modelDispatch(req:Request,parts:string[]):Promise<Response
   if(!message)bad(400,"Message required");
   const result=await generateStorySuggestion(context,message);
   const film=b.filmId?checkUUID(String(b.filmId)):null;
-  if(film){await db().query("INSERT INTO ai_history(id,film_id,model,instruction,answer,usage) VALUES($1,$2,$3,$4,$5,$6)",[randomUUID(),film,result.model,message,result.text,JSON.stringify(result.usage)]);}
+  if(film){await db().query("INSERT INTO ai_history(id,film_id,model,instruction,answer,usage,input_snapshot) VALUES($1,$2,$3,$4,$5,$6,$7)",[randomUUID(),film,result.model,message,result.text,JSON.stringify(result.usage),JSON.stringify({context,message})]);}
   return reply({answer:result.text,model:result.model,usage:result.usage,real:true});
  }
  if(parts[0]==="units"&&parts[2]==="ai-proposals"&&parts.length===3&&req.method==="POST"){
@@ -31,9 +31,10 @@ export async function modelDispatch(req:Request,parts:string[]):Promise<Response
   const script=await db().query("SELECT u.film_id,u.version,r.content FROM script_units u JOIN script_revisions r ON r.id=u.adopted_revision_id WHERE u.id=$1",[unit]);
   if(!script.rowCount)bad(404,"Script unit not found");
   const row=script.rows[0],instruction=String(b.direction||"请提高场景的戏剧张力、行动和潜台词").slice(0,3000);
-  const generated=await generateStorySuggestion(row.content,instruction);
+  const context=(await db().query("SELECT u.title,r.content FROM script_units u LEFT JOIN script_revisions r ON r.id=u.adopted_revision_id WHERE u.film_id=$1 ORDER BY position",[row.film_id])).rows;
+  const generated=await generateStorySuggestion(JSON.stringify({currentUnit:unit,currentContent:row.content,filmScript:context}),instruction);
   const text=extractDraft(generated.text),id=randomUUID();
-  await db().query("INSERT INTO ai_proposals(id,unit_id,base_version,suggestion,explanation,model,usage) VALUES($1,$2,$3,$4,$5,$6,$7)",[id,unit,row.version,text.suggestion,text.explanation,generated.model,JSON.stringify(generated.usage)]);
+  await db().query("INSERT INTO ai_proposals(id,unit_id,base_version,suggestion,explanation,model,usage,input_snapshot) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",[id,unit,row.version,text.suggestion,text.explanation,generated.model,JSON.stringify(generated.usage),JSON.stringify({currentUnit:unit,currentVersion:row.version,currentContent:row.content,filmScript:context,instruction})]);
   return reply({id,status:"pending",baseVersion:row.version,suggestion:text.suggestion,explanation:text.explanation,model:generated.model,real:true},201);
  }
  if(parts[0]==="assets"&&parts.length===3&&parts[2]==="candidates"&&req.method==="GET"){
@@ -54,7 +55,7 @@ export async function modelDispatch(req:Request,parts:string[]):Promise<Response
   const candidateId=randomUUID(),qa=assetImageQA(a.kind,uploaded.width,uploaded.height);
   await transaction(async c=>{
    await c.query("INSERT INTO media_files(id,filename,mime,bytes,sha256,storage_path,width,height) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",[uploaded.id,uploaded.filename,uploaded.mime,uploaded.bytes,uploaded.sha256,uploaded.storagePath,uploaded.width,uploaded.height]);
-   await c.query("INSERT INTO asset_candidates(id,asset_id,media_id,provider,prompt,qa_status) VALUES($1,$2,$3,$4,$5,$6)",[candidateId,asset,uploaded.id,generated.model,desc,qa]);
+   await c.query("INSERT INTO asset_candidates(id,asset_id,media_id,provider,prompt,qa_status,input_snapshot,provider_snapshot) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",[candidateId,asset,uploaded.id,generated.model,desc,qa,JSON.stringify(generated.inputSnapshot),JSON.stringify({revisedPrompt:generated.revisedPrompt,usage:generated.usage})]);
   });
   return reply({id:candidateId,assetId:asset,mediaId:uploaded.id,url:"/api/media/"+uploaded.id+"/file",width:uploaded.width,height:uploaded.height,qaStatus:qa,adopted:false,provider:generated.model},201);
  }

@@ -8,7 +8,7 @@ export function db(): pg.Pool {
 }
 export async function ensureDb() {
  if (!ready) ready = db().query("SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1").then(r=>{
-  if(r.rows[0]?.version!=="002-workspaces.sql")throw new Error("Database migrations required: npm run migrate");
+  if(r.rows[0]?.version!=="003-lineage.sql")throw new Error("Database migrations required: npm run migrate");
  }).catch(e=>{ready=undefined;throw e;});
  return ready;
 }

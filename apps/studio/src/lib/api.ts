@@ -85,13 +85,15 @@ export async function dispatch(req:Request,parts:string[]):Promise<Response>{
  if(parts[0]==="media"&&parts.length===1&&method==="POST"){
   const data=await req.formData(),file=data.get("file");if(!(file instanceof File))throw new HttpError(400,"file required");
   const m=await saveUpload(file);
-  await db().query("INSERT INTO media_files(id,filename,mime,bytes,sha256,storage_path,width,height) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",[m.id,m.filename,m.mime,m.bytes,m.sha256,m.storagePath,m.width,m.height]);
+  await db().query("INSERT INTO media_files(id,filename,mime,bytes,sha256,storage_path,width,height,technical_qa) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",[m.id,m.filename,m.mime,m.bytes,m.sha256,m.storagePath,m.width,m.height,JSON.stringify(m.technicalQA)]);
   return send({id:m.id,name:m.filename,mime:m.mime,bytes:m.bytes,width:m.width,height:m.height,url:"/api/media/"+m.id+"/file"},201);
  }
  if(parts[0]==="media"&&parts[2]==="file"&&method==="GET"){
   const m=assertFound(await one("SELECT * FROM media_files WHERE id=$1",[uuid(parts[1])]));
   const bytes=await loadMedia(m.storage_path);
-  return new Response(new Uint8Array(bytes),{headers:{"Content-Type":m.mime,"Content-Length":String(bytes.length),"Cache-Control":"private, max-age=3600","X-Content-Type-Options":"nosniff"}});
+  const headers:Record<string,string>={"Content-Type":m.mime,"Cache-Control":"private, max-age=3600","X-Content-Type-Options":"nosniff","Accept-Ranges":"bytes"};
+  const range=req.headers.get('range');if(range){const match=/^bytes=(\d*)-(\d*)$/.exec(range);if(!match||!match[1]&&!match[2])return new Response(null,{status:416,headers:{'Content-Range':'bytes */'+bytes.length}});const start=match[1]?Number(match[1]):Math.max(0,bytes.length-Number(match[2])),end=match[1]&&match[2]?Math.min(Number(match[2]),bytes.length-1):bytes.length-1;if(start>=bytes.length||end<start)return new Response(null,{status:416,headers:{'Content-Range':'bytes */'+bytes.length}});headers['Content-Range']=`bytes ${start}-${end}/${bytes.length}`;headers['Content-Length']=String(end-start+1);return new Response(new Uint8Array(bytes.subarray(start,end+1)),{status:206,headers});}
+  headers['Content-Length']=String(bytes.length);return new Response(new Uint8Array(bytes),{headers});
  }
  throw new HttpError(404,"Unknown route");
 }

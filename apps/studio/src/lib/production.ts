@@ -64,14 +64,22 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
   if(method==="POST"){
    const b=await json(req),key=required(req.headers.get("Idempotency-Key")??b.intentKey,"Idempotency-Key");
    if(key.length<8||key.length>128)fail(400,"Idempotency-Key must contain 8–128 characters");
-   const c=(await db().query("SELECT * FROM generation_clips WHERE id=$1",[clip])).rows[0];
-   if(!c)fail(404,"Clip not found");
-   if(c.continuation_parent_clip_id)fail(409,"This Clip requires native Motion Context continuation. RunningHub does not support it.");
-   const runId=randomUUID();
-   const snap={clipId:clip,prompt:c.prompt,seconds:c.seconds,aspectRatio:c.aspect_ratio,referenceMediaIds:c.reference_media_ids,model:"runninghub-minimax-h3"};
-   const row=await db().query("INSERT INTO video_runs(id,clip_id,provider,intent_key,input_snapshot) VALUES($1,$2,'runninghub',$3,$4) ON CONFLICT(clip_id,intent_key) DO NOTHING RETURNING *",[runId,clip,key,JSON.stringify(snap)]);
-   const result=row.rows[0]??(await db().query("SELECT * FROM video_runs WHERE clip_id=$1 AND intent_key=$2",[clip,key])).rows[0];
-   return response({id:result.id,clipId:clip,status:result.status,providerJobId:result.provider_job_id,alreadyExists:!row.rowCount},row.rowCount?201:200);
+   const outcome=await transaction(async client=>{
+    const c=(await client.query("SELECT * FROM generation_clips WHERE id=$1 FOR UPDATE",[clip])).rows[0];if(!c)fail(404,"Clip not found");
+    const previous=(await client.query("SELECT * FROM video_runs WHERE clip_id=$1 AND intent_key=$2",[clip,key])).rows[0];if(previous)return {result:previous,created:false};
+    if(c.continuation_parent_clip_id)fail(409,"This Clip requires native Motion Context continuation. RunningHub does not support it.");
+    const mediaIds=c.reference_media_ids as string[];
+    const references=(await client.query("SELECT DISTINCT ON (m.id) m.id AS media_id,m.sha256,m.mime,r.id AS revision_id,r.revision_number,r.content_qa,a.id AS asset_id,a.name,a.kind,a.variant,a.baseline_rate FROM asset_revisions r JOIN assets a ON a.id=r.asset_id JOIN media_files m ON m.id=r.media_id WHERE a.film_id=$1 AND r.media_id=ANY($2::uuid[]) ORDER BY m.id,r.created_at DESC",[c.film_id,mediaIds])).rows;
+    if(mediaIds.some(id=>!references.some(r=>r.media_id===id)))fail(400,"Reference must be a formal media version in this Film");
+    if(references.some(r=>r.content_qa?.status==='needs_changes'))fail(409,"Reference asset needs changes");
+    if(references.filter(r=>r.mime.startsWith('image/')).length>6||references.filter(r=>r.mime.startsWith('audio/')).length>3)fail(400,"RunningHub supports up to six images and three audio references");
+    const shots=(await client.query("SELECT l.*,s.version,s.title,s.description,s.design FROM clip_shots l JOIN director_shots s ON s.id=l.shot_id WHERE clip_id=$1 ORDER BY clip_start_seconds",[clip])).rows;
+    const script=(await client.query("SELECT u.id,u.title,u.version,u.adopted_revision_id,r.content FROM script_units u LEFT JOIN script_revisions r ON r.id=u.adopted_revision_id WHERE u.film_id=$1 ORDER BY position",[c.film_id])).rows;
+    const snap={clipId:clip,clipVersion:c.version,filmId:c.film_id,prompt:c.prompt,seconds:c.seconds,aspectRatio:c.aspect_ratio,referenceMediaIds:mediaIds,references,shots,script,plan:c.plan,model:"runninghub-minimax-h3",routeRole:'temporary_test',nativeContinuation:false};
+    const result=(await client.query("INSERT INTO video_runs(id,clip_id,provider,intent_key,input_snapshot) VALUES($1,$2,'runninghub',$3,$4) RETURNING *",[randomUUID(),clip,key,JSON.stringify(snap)])).rows[0];return {result,created:true};
+   });
+   const {result,created}=outcome;
+   return response({id:result.id,clipId:clip,status:result.status,providerJobId:result.provider_job_id,alreadyExists:!created},created?201:200);
   }
  }
  if(parts[0]==="runs"&&parts.length===2&&method==="GET"){
@@ -126,16 +134,15 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
    const b=await json(req);
    const intent=required(req.headers.get("Idempotency-Key")??b.intentKey,"Idempotency-Key");
    if(intent.length<8||intent.length>128)fail(400,"Invalid Render intent key");
-   await filmExists(film);
-   const segments=(await db().query("SELECT l.id,l.position_index,l.take_id,l.source_in_seconds,l.source_out_seconds,m.id AS media_id,m.sha256,m.mime,t.adopted,t.qa_status FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id WHERE l.film_id=$1 ORDER BY l.position_index",[film])).rows;
-   if(!segments.length)fail(409,"Timeline has no adopted video segments");
-   if(segments.some(s=>!s.adopted||s.mime!=="video/mp4"))fail(409,"Timeline includes an unadopted or nonvideo Take");
-   if(segments.some(s=>s.qa_status==='needs_changes'))fail(409,"Timeline includes a Take that needs changes");
-   const settings={format:"mp4",width:1280,height:720,fps:24,snapshotSegments:segments};
-   const renderId=randomUUID();
-   const row=await db().query("INSERT INTO renders(id,film_id,intent_key,settings) VALUES($1,$2,$3,$4) ON CONFLICT(film_id,intent_key) DO NOTHING RETURNING *",[renderId,film,intent,JSON.stringify(settings)]);
-   const result=row.rows[0]??(await db().query("SELECT * FROM renders WHERE film_id=$1 AND intent_key=$2",[film,intent])).rows[0];
-   return response({id:result.id,status:result.status,filmId:film,alreadyExists:!row.rowCount},row.rowCount?201:200);
+   const outcome=await transaction(async client=>{
+    const f=(await client.query('SELECT * FROM films WHERE id=$1 FOR UPDATE',[film])).rows[0];if(!f)fail(404,'Film not found');
+    const existing=(await client.query('SELECT * FROM renders WHERE film_id=$1 AND intent_key=$2',[film,intent])).rows[0];if(existing)return {result:existing,created:false};
+    const segments=(await client.query("SELECT l.id,l.position_index,l.take_id,l.source_in_seconds,l.source_out_seconds,l.volume,l.fade_in_seconds,l.fade_out_seconds,m.id AS media_id,m.sha256,m.mime,m.technical_qa,t.adopted,t.qa_status FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id WHERE l.film_id=$1 ORDER BY l.position_index FOR SHARE OF t",[film])).rows;
+    if(!segments.length)fail(409,"Timeline has no adopted video segments");if(segments.some(s=>!s.adopted||s.mime!=="video/mp4"||s.qa_status==='needs_changes'))fail(409,"Timeline includes an unadopted or rejected Take");
+    const settings={format:'mp4',width:1280,height:720,fps:24,timelineVersion:f.timeline_version,snapshotSegments:segments};
+    const result=(await client.query('INSERT INTO renders(id,film_id,intent_key,settings) VALUES($1,$2,$3,$4) RETURNING *',[randomUUID(),film,intent,JSON.stringify(settings)])).rows[0];return {result,created:true};
+   });
+   return response({id:outcome.result.id,status:outcome.result.status,filmId:film,alreadyExists:!outcome.created},outcome.created?201:200);
   }
  }
  if(parts[0]==="renders"&&parts.length===2&&method==="GET"){
