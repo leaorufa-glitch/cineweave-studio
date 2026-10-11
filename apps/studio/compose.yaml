@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: cineweave
+      POSTGRES_PASSWORD: cineweave_dev
+      POSTGRES_DB: cineweave
+    ports:
+      - "127.0.0.1:5439:5432"
+    volumes:
+      - cineweave_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U cineweave -d cineweave"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+volumes:
+  cineweave_pg_data:

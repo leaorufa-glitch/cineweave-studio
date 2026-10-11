@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.DS_Store
+.ai-bridge/
+*.zip
+.env
+.env.local
+.local-media/
+*.tsbuildinfo
