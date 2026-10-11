@@ -71,4 +71,6 @@ Private delivery in original checkout: `output/phase1-finish-20261011/再走一�
 
 The planned ~80s full film is **not completed**: four unknown submissions need gateway reconciliation before further attempts. Board details, identity/continuity and audio content need creator art review. Owned H3 protocol/Motion Context await actual integration. Full automatic artistic QA, subtitle editor, multi-track mixing, complete multi-episode management and cross-project reuse remain later work.
 
-Loopback/Host/Origin controls protect local use; they **are not account authentication, tenant isolation or production authorization**. Do not publicly deploy project/media APIs before those exist. No public deployment, main merge or owned-H3 capability is claimed.
+Creator-approved access policy (2026-10-11): all pages and business APIs are open to all visitors, without login, allowlists or role checks. Tunnel Host/Origin headers are accepted; GET/POST responses and OPTIONS preflight allow cross-origin browser access. Model keys remain private server configuration. Input/media validation, version conflicts, QA and idempotency continue to protect data integrity and prevent duplicate paid submissions.
+
+For the existing Cloudflare share, keep `npm run local` and its tunnel to `http://127.0.0.1:32787` running. Use the tunnel origin with `/approved/index.html`; project and media URLs are relative to that origin. This is the creator-authorized local share, not a new production deployment. No main merge or owned-H3 capability is claimed.

@@ -1,4 +1,4 @@
-// Local-only supervisor. PostgreSQL must already be running; never exposes APIs publicly.
+// Local supervisor. PostgreSQL must already be running; creator-authorized sharing uses a separate tunnel.
 import {spawn} from 'node:child_process';
 const port=process.env.PORT||'32787';if(!/^\d+$/.test(port)||Number(port)<1024||Number(port)>65535)throw Error('Invalid local port');
 const children=[];let closing=false;

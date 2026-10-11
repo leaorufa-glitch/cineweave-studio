@@ -27,5 +27,19 @@ test('workspace revisions, edited AI proposals, board adoption races and indepen
  const races=await Promise.all([call(`candidates/${candidate.id}/adopt`,{expectedVersion:0}),call(`candidates/${candidate.id}/adopt`,{expectedVersion:0})]);assert.deepEqual(races.map(r=>r.status).sort(),[201,409]);
  const versions=(await call(`assets/${asset.id}/revisions`)).data;assert.equal(versions.length,1);assert.equal(versions[0].media_id,upload.id);assert.equal(versions[0].content_qa.status,'accepted');
  const range=await fetch(base+upload.url,{headers:{Range:'bytes=0-9'}});assert.equal(range.status,206);assert.equal((await range.arrayBuffer()).byteLength,10);
- const denied=await fetch(base+'/api/projects',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://untrusted.invalid'},body:'{"name":"blocked"}'});assert.equal(denied.status,403);
+});
+
+test('open access through tunnel hosts and cross-origin browser requests',{skip:!base},async()=>{
+ const headers={Host:'sharing.example.com',Origin:'https://viewer.example.com','Sec-Fetch-Site':'cross-site','X-Forwarded-Host':'sharing.example.com','X-Forwarded-Proto':'https'};
+ const preflight=await fetch(base+'/api/projects',{method:'OPTIONS',headers:{...headers,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'content-type,idempotency-key'}});
+ assert.equal(preflight.status,204);assert.equal(preflight.headers.get('access-control-allow-origin'),'*');assert.match(preflight.headers.get('access-control-allow-methods'),/POST/);assert.equal(preflight.headers.get('access-control-allow-headers'),'*');
+ const name='open access '+randomUUID();
+ const created=await fetch(base+'/api/projects',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({name,idea:'隧道开放访问持久化检查'})});
+ assert.equal(created.status,201);assert.equal(created.headers.get('access-control-allow-origin'),'*');const project=await created.json();assert.ok(project.filmId);
+ const listed=await fetch(base+'/api/projects',{headers});assert.equal(listed.status,200);assert.ok((await listed.json()).some(p=>p.id===project.id&&p.name===name));
+ const workspace=await fetch(base+`/api/films/${project.filmId}/workspace`,{headers});assert.equal(workspace.status,200);
+ const invalid=await fetch(base+'/api/projects',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'[]'});assert.equal(invalid.status,400);assert.equal(invalid.headers.get('access-control-allow-origin'),'*');
+ const png=await sharp({create:{width:100,height:150,channels:3,background:'#345678'}}).png().toBuffer();const form=new FormData();form.append('file',new File([png],'open-board.png',{type:'image/png'}));
+ const uploaded=await fetch(base+'/api/media',{method:'POST',headers,body:form});assert.equal(uploaded.status,201);const media=await uploaded.json();
+ const range=await fetch(base+media.url,{headers:{...headers,Range:'bytes=0-9'}});assert.equal(range.status,206);assert.equal(range.headers.get('access-control-allow-origin'),'*');assert.match(range.headers.get('access-control-expose-headers'),/Content-Range/);assert.equal((await range.arrayBuffer()).byteLength,10);
 });

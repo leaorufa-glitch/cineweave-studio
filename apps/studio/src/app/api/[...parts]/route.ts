@@ -10,9 +10,6 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 async function handle(req:NextRequest,ctx:{params:Promise<{parts:string[]}>}){
  try{
-  const host=req.headers.get('host')??'',origin=req.headers.get('origin');
-  if(!/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host))return Response.json({error:'Local access only; account authorization required before public deployment'},{status:403});
-  if(req.method!=='GET'&&(req.headers.get('sec-fetch-site')==='cross-site'||origin&&new URL(origin).host!==host))return Response.json({error:'Cross-origin mutation blocked'},{status:403});
   let request:Request=req;
   if(req.method==='POST'&&req.headers.get('content-type')?.includes('application/json')){
    const reader=req.body?.getReader();const chunks:Uint8Array[]=[];let size=0;
@@ -23,4 +20,17 @@ async function handle(req:NextRequest,ctx:{params:Promise<{parts:string[]}>}){
   const {parts}=await ctx.params;const workspace=await workspaceDispatch(request,parts);if(workspace)return workspace;const model=await modelDispatch(request,parts);if(model)return model;const review=await reviewDispatch(request,parts);if(review)return review;const production=await productionDispatch(request,parts);if(production)return production;return await dispatch(request,parts);}
  catch(e){const error=e as Error & {code?:string};const code=(e instanceof HttpError||e instanceof GatewayError)?e.status:e instanceof MediaValidationError?400:error.code==="23505"?409:error.code==="23503"?404:500;return Response.json({error:code===500?"Internal error":error.message},{status:code});}
 }
-export {handle as GET,handle as POST};
+// Creator-approved open access: tunnel hosts and browser origins have the same
+// business capabilities. Validation and version/idempotency rules still apply.
+function openAccess(response:Response){
+ response.headers.set('Access-Control-Allow-Origin','*');
+ response.headers.set('Access-Control-Allow-Methods','GET, POST, OPTIONS');
+ response.headers.set('Access-Control-Allow-Headers','*');
+ response.headers.set('Access-Control-Expose-Headers','Content-Length, Content-Range, Accept-Ranges');
+ return response;
+}
+async function openHandle(req:NextRequest,ctx:{params:Promise<{parts:string[]}>}){
+ return openAccess(await handle(req,ctx));
+}
+export {openHandle as GET,openHandle as POST};
+export function OPTIONS(){return openAccess(new Response(null,{status:204}));}
