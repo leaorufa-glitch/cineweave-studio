@@ -88,6 +88,22 @@ CREATE TABLE IF NOT EXISTS video_takes (
  adopted BOOLEAN NOT NULL DEFAULT false, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_one_take_per_run ON video_takes (run_id);
+ALTER TABLE video_takes ADD COLUMN IF NOT EXISTS review_version INTEGER NOT NULL DEFAULT 1;
+CREATE TABLE IF NOT EXISTS take_review_issues (
+ id UUID PRIMARY KEY, take_id UUID NOT NULL REFERENCES video_takes(id) ON DELETE CASCADE,
+ time_seconds NUMERIC NOT NULL CHECK(time_seconds >= 0),
+ reason TEXT NOT NULL, target_kind TEXT NOT NULL CHECK(target_kind IN ('clip','shot','asset')),
+ target_id UUID NOT NULL, status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','resolved')),
+ resolution TEXT, version INTEGER NOT NULL DEFAULT 1,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(), resolved_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ix_take_review_issues ON take_review_issues(take_id,created_at);
+CREATE TABLE IF NOT EXISTS take_review_decisions (
+ id UUID PRIMARY KEY, take_id UUID NOT NULL REFERENCES video_takes(id) ON DELETE CASCADE,
+ review_version INTEGER NOT NULL, qa_status TEXT NOT NULL,
+ note TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ UNIQUE(take_id,review_version)
+);
 ALTER TABLE generation_clips ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE generation_clips ADD COLUMN IF NOT EXISTS adopted_take_id UUID REFERENCES video_takes(id);
 CREATE TABLE IF NOT EXISTS timeline_segments (

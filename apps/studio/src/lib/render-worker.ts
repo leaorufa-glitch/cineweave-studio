@@ -12,8 +12,9 @@ const safe=(e:unknown)=>e instanceof Error?(e.message.slice(0,450)):String(e).sl
 type SnapshotSegment={id:string,position_index:number,take_id:string,source_in_seconds:string,source_out_seconds:string|null,media_id:string,sha256:string,mime:string,adopted:boolean};
 type RenderJob={id:string,settings:{width:number,height:number,fps:number,snapshotSegments:SnapshotSegment[]}};
 async function normalize(segment:SnapshotSegment,output:string,settings:RenderJob["settings"]){
- const res=await db().query("SELECT storage_path,mime,sha256 FROM media_files WHERE id=$1",[segment.media_id]);
+ const res=await db().query("SELECT m.storage_path,m.mime,m.sha256,t.qa_status FROM media_files m JOIN video_takes t ON t.media_id=m.id WHERE m.id=$1 AND t.id=$2",[segment.media_id,segment.take_id]);
  const m=res.rows[0];if(!m||m.mime!=="video/mp4")throw new Error("Media missing or not MP4");
+ if(m.qa_status==='needs_changes')throw new Error("Take was marked for changes after render submission");
  if(!segment.adopted)throw new Error("Render cannot include an unadopted Take");
  const input=await readFile(m.storage_path);
  if(createHash("sha256").update(input).digest("hex")!==segment.sha256)throw new Error("Source media hash changed after timeline submission");

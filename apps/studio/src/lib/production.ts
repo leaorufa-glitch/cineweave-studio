@@ -87,9 +87,14 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
   const take=id(parts[1]),b=await json(req),version=Number(b.expectedClipVersion);
   if(!Number.isInteger(version)||version<1)fail(400,"expectedClipVersion is required");
   return response(await transaction(async client=>{
-   const res=await client.query("SELECT t.id,r.clip_id FROM video_takes t JOIN video_runs r ON r.id=t.run_id WHERE t.id=$1 FOR UPDATE OF t",[take]);
+   const owner=await client.query("SELECT r.clip_id FROM video_takes t JOIN video_runs r ON r.id=t.run_id WHERE t.id=$1",[take]);
+   if(!owner.rowCount)fail(404,"Take not found");
+   const clip=owner.rows[0].clip_id;
+   // Serialize competing Take adoption by Clip before touching its Take rows.
+   await client.query("SELECT id FROM generation_clips WHERE id=$1 FOR UPDATE",[clip]);
+   const res=await client.query("SELECT t.id,t.qa_status FROM video_takes t WHERE t.id=$1 FOR UPDATE OF t",[take]);
    if(!res.rowCount)fail(404,"Take not found");
-   const clip=res.rows[0].clip_id;
+   if(res.rows[0].qa_status==='needs_changes')fail(409,"Take needs changes; finish review before adopting");
    const updated=await client.query("UPDATE generation_clips SET adopted_take_id=$1,version=version+1 WHERE id=$2 AND version=$3 RETURNING version",[take,clip,version]);
    if(!updated.rowCount)fail(409,"Clip modified elsewhere, refresh before adopting");
    await client.query("UPDATE video_takes SET adopted=(id=$1) WHERE run_id IN(SELECT id FROM video_runs WHERE clip_id=$2)",[take,clip]);
@@ -98,14 +103,15 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
  }
  if(parts[0]==="films"&&parts.length===3&&parts[2]==="timeline"){
   const film=id(parts[1]);
-  if(method==="GET")return response((await db().query("SELECT l.*,m.mime,m.filename,c.title AS clip_title FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id LEFT JOIN generation_clips c ON c.id=l.clip_id WHERE l.film_id=$1 ORDER BY position_index",[film])).rows);
+  if(method==="GET")return response((await db().query("SELECT l.*,m.id AS media_id,m.mime,m.filename,c.title AS clip_title FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id LEFT JOIN generation_clips c ON c.id=l.clip_id WHERE l.film_id=$1 ORDER BY position_index",[film])).rows);
   if(method==="POST"){
    const b=await json(req),take=id(required(b.takeId,"Take ID")),pos=Number(b.positionIndex);
    if(!Number.isInteger(pos)||pos<0)fail(400,"Invalid position");
    await filmExists(film);
-   const result=await db().query("SELECT r.clip_id,c.film_id,t.adopted FROM video_takes t JOIN video_runs r ON r.id=t.run_id JOIN generation_clips c ON c.id=r.clip_id WHERE t.id=$1",[take]);
+   const result=await db().query("SELECT r.clip_id,c.film_id,t.adopted,t.qa_status FROM video_takes t JOIN video_runs r ON r.id=t.run_id JOIN generation_clips c ON c.id=r.clip_id WHERE t.id=$1",[take]);
    if(!result.rowCount||result.rows[0].film_id!==film)fail(400,"Take does not belong to Film");
    if(!result.rows[0].adopted)fail(409,"Only an explicitly adopted Take can enter the finishing timeline");
+   if(result.rows[0].qa_status==='needs_changes')fail(409,"Take needs changes; finish review before adding to timeline");
    const start=Number(b.sourceInSeconds??0),end=b.sourceOutSeconds==null?null:Number(b.sourceOutSeconds);
    if(start<0||!Number.isFinite(start)||(end!==null&&(!Number.isFinite(end)||end<=start)))fail(400,"Invalid source trim");
    const segment=randomUUID(),clip=result.rows[0].clip_id;
@@ -121,9 +127,10 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
    const intent=required(req.headers.get("Idempotency-Key")??b.intentKey,"Idempotency-Key");
    if(intent.length<8||intent.length>128)fail(400,"Invalid Render intent key");
    await filmExists(film);
-   const segments=(await db().query("SELECT l.id,l.position_index,l.take_id,l.source_in_seconds,l.source_out_seconds,m.id AS media_id,m.sha256,m.mime,t.adopted FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id WHERE l.film_id=$1 ORDER BY l.position_index",[film])).rows;
+   const segments=(await db().query("SELECT l.id,l.position_index,l.take_id,l.source_in_seconds,l.source_out_seconds,m.id AS media_id,m.sha256,m.mime,t.adopted,t.qa_status FROM timeline_segments l JOIN video_takes t ON t.id=l.take_id JOIN media_files m ON m.id=t.media_id WHERE l.film_id=$1 ORDER BY l.position_index",[film])).rows;
    if(!segments.length)fail(409,"Timeline has no adopted video segments");
    if(segments.some(s=>!s.adopted||s.mime!=="video/mp4"))fail(409,"Timeline includes an unadopted or nonvideo Take");
+   if(segments.some(s=>s.qa_status==='needs_changes'))fail(409,"Timeline includes a Take that needs changes");
    const settings={format:"mp4",width:1280,height:720,fps:24,snapshotSegments:segments};
    const renderId=randomUUID();
    const row=await db().query("INSERT INTO renders(id,film_id,intent_key,settings) VALUES($1,$2,$3,$4) ON CONFLICT(film_id,intent_key) DO NOTHING RETURNING *",[renderId,film,intent,JSON.stringify(settings)]);

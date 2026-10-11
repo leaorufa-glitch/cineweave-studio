@@ -1,7 +1,7 @@
 # V1.5-04｜Codex 可执行开发任务包与交付验收
 
-> **状态：可以在“获准开发”后转换成 GitHub Issues / Codex 任务的实施草案；2026-10-11。**
-> **当前只写工程任务说明；没有创建代码、环境、数据库、真实生成任务或 GitHub 开发 Issue。**
+> **状态：工程任务与验收草案；已获准持续开发，2026-10-11 更新。**
+> **实际进度以代码和验收记录为准**：CW-00～CW-02 基础与 Shot/Clip、临时 H3 测试、轻量 Render 纵切已落地；本轮补齐 CW-07 的人工 Take 对比、时间码问题、对象返工定位、审片历史和采用/导出阻断，隔离测试 7/7、构建及浏览器回归通过。详情与可复现命令见 [应用 README](../../apps/studio/README.md)。完整时间线编辑、自动内容 QA、自有 H3 原生续接与 80 秒成片验收仍未完成。下文开工前的授权文字保留为原任务草案，当前持续授权与主路线以根目录 AGENTS.md 为准。
 > 输入基线：[集中设计总览](../MASTER-DESIGN-REVIEW-V1.5.md)、[V1.5-01 架构候选](01-ENGINEERING-ARCHITECTURE-AND-ACCEPTANCE-PLAN.md)、[02 数据事务](02-DOMAIN-DATA-AND-TRANSACTION-CONTRACT.md)、[03 API 与 Worker](03-API-PROVIDER-AND-JOBS-CONTRACT.md)，以及 V1.3-11～14。
 > 所有任务不得重写已确认的 PD-001～PD-009；细节实现可更简洁，但不能牺牲真实音画和影片质量。
 

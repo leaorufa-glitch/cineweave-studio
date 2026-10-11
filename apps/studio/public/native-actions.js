@@ -172,6 +172,103 @@
   });
   notify(segments.length?"正式时间线已载入 "+segments.length+" 段真实视频。演示模板时间线与此不同。":"正式时间线为空，请先到生成制作区人工采用真实 Take 并加入时间线。");
  }
+ let reviewLoad=0;
+ const qaLabel=value=>({needs_review:"待人工审片",needs_changes:"待返工",accepted:"人工审片通过"}[value]||value);
+ function reviewElement(tag,text,className){const node=document.createElement(tag);if(text)node.textContent=text;if(className)node.className=className;if(["input","select","textarea"].includes(tag))node.classList.add("input");return node;}
+ function reviewField(label,input){const wrapper=reviewElement("label",label,"vstack");wrapper.append(input);return wrapper;}
+ async function showTakeReviews(selectedClip,selectedTake,comparisonTake){
+  if(!s.project)throw Error("请先选择真实工程");
+  const film=s.project.filmId,load=++reviewLoad;
+  const takes=await api("/films/"+film+"/takes");
+  if(load!==reviewLoad||s.project?.filmId!==film||proto.state.page!==6)return;
+  document.getElementById("cw-take-review")?.remove();
+  const section=document.querySelector(".review-layout > section");
+  if(!section)return;
+  const card=reviewElement("div",null,"card");card.id="cw-take-review";card.style.margin="16px 0";
+  const heading=reviewElement("h2","真实 Take 对比与审片");card.append(heading);
+  const message=reviewElement("p","人工结论与时间码反馈会保存到当前工程。生成完成不会自动通过审片。","text-note");card.append(message);
+  const feedback=reviewElement("p");feedback.setAttribute("role","status");feedback.id="cw-review-status";card.append(feedback);
+  section.insertBefore(card,section.querySelector(".timeline"));
+  if(!takes.length){feedback.textContent="当前工程尚无真实 Take。生成完成并保存媒体后，可在此审片。";return;}
+  const clips=[...new Map(takes.map(t=>[t.clip_id,t.clip_title])).entries()];
+  const clipId=clips.some(x=>x[0]===selectedClip)?selectedClip:clips[0][0];
+  const options=takes.filter(t=>t.clip_id===clipId);
+  const chosen=options.find(t=>t.id===selectedTake)||options[0];
+  const clipSelect=reviewElement("select");clipSelect.id="cw-review-clip";
+  clips.forEach(([key,title])=>clipSelect.add(new Option(title,key)));clipSelect.value=clipId;
+  const takeSelect=reviewElement("select");takeSelect.id="cw-review-take";
+  options.forEach(t=>takeSelect.add(new Option(t.id.slice(0,8)+" · "+qaLabel(t.qa_status)+(t.adopted?" · 已采用":""),t.id)));takeSelect.value=chosen.id;
+  const compareSelect=reviewElement("select");compareSelect.id="cw-review-compare";compareSelect.add(new Option("不对比",""));
+  options.filter(t=>t.id!==chosen.id).forEach(t=>compareSelect.add(new Option("Take "+t.id.slice(0,8),t.id)));
+  compareSelect.value=options.some(t=>t.id===comparisonTake&&t.id!==chosen.id)?comparisonTake:"";
+  const selectors=reviewElement("div",null,"grid three");selectors.append(reviewField("生成 Clip",clipSelect),reviewField("审片 Take",takeSelect),reviewField("同 Clip 对比 Take",compareSelect));card.append(selectors);
+  const operate=fn=>async()=>{
+   if(card.dataset.busy)return;
+   card.dataset.busy="true";card.querySelectorAll("button,input,textarea,select").forEach(e=>e.disabled=true);
+   try{if(s.project?.filmId!==film||!card.isConnected)throw Error("工程已切换，请重新打开审片");await fn();}
+   catch(e){feedback.textContent="操作失败："+(e?.message||String(e));}
+   finally{delete card.dataset.busy;card.querySelectorAll("button,input,textarea,select").forEach(e=>e.disabled=false);}
+  };
+  clipSelect.onchange=operate(()=>showTakeReviews(clipSelect.value));
+  takeSelect.onchange=operate(()=>showTakeReviews(clipId,takeSelect.value));
+  compareSelect.onchange=operate(()=>showTakeReviews(clipId,chosen.id,compareSelect.value));
+  let detail,issues;
+  try{[detail,issues]=await Promise.all([api("/takes/"+chosen.id),api("/takes/"+chosen.id+"/issues")]);}
+  catch(e){feedback.textContent="无法审片："+(e?.message||String(e));return;}
+  if(load!==reviewLoad||s.project?.filmId!==film||!card.isConnected)return;
+  const players=reviewElement("div",null,"grid two");players.style.margin="14px 0";
+  const video=reviewElement("video");video.id="cw-review-video";video.src=detail.mediaUrl;video.controls=true;video.playsInline=true;video.preload="metadata";video.style.width="100%";
+  const first=reviewElement("div");first.append(reviewElement("p","审片 Take "+chosen.id.slice(0,8)+" · "+detail.durationSeconds.toFixed(2)+" 秒 · "+qaLabel(detail.qa_status),"small"),video);players.append(first);
+  if(compareSelect.value){
+   const other=options.find(t=>t.id===compareSelect.value),v=reviewElement("video");v.id="cw-compare-video";v.src="/api/media/"+other.media_id+"/file";v.controls=true;v.playsInline=true;v.preload="metadata";v.style.width="100%";
+   video.onplay=()=>v.pause();v.onplay=()=>video.pause();
+   const second=reviewElement("div");second.append(reviewElement("p","对比 Take "+other.id.slice(0,8)+" · "+qaLabel(other.qa_status),"small"),v);players.append(second);
+  }card.append(players);
+  const time=reviewElement("input");time.id="cw-review-time";time.type="number";time.min="0";time.max=String(detail.durationSeconds);time.step="0.01";time.value="0";
+  const capture=reviewElement("button","使用当前播放时间","btn sm");capture.type="button";capture.onclick=()=>{time.value=video.currentTime.toFixed(2);};
+  const target=reviewElement("select");target.id="cw-review-target";target.add(new Option("Clip · "+detail.clip_title,"clip:"+detail.clip_id));
+  detail.shots.forEach(sh=>target.add(new Option("Shot · "+sh.title,"shot:"+sh.id)));
+  detail.assets.forEach(a=>target.add(new Option("资产 · "+a.name+" / "+a.variant,"asset:"+a.id)));
+  const reason=reviewElement("textarea");reason.id="cw-review-reason";reason.rows=2;reason.maxLength=4000;reason.placeholder="例如：钥匙变形、人物站位跳变或对白语速不符";
+  const row=reviewElement("div",null,"grid two");row.append(reviewField("问题时间（Take 源视频秒）",time),reviewField("返工对象",target));card.append(row,capture,reviewField("问题与返工原因",reason));
+  const save=reviewElement("button","保存时间码问题","btn");save.id="cw-review-save";save.type="button";
+  save.onclick=operate(async()=>{
+   const [kind,id]=target.value.split(":");
+   await api("/takes/"+chosen.id+"/issues","POST",{expectedTakeVersion:detail.review_version,timeSeconds:Number(time.value),reason:reason.value,targetKind:kind,targetId:id});
+   await showTakeReviews(clipId,chosen.id,compareSelect.value);
+  });card.append(save);
+  const issueList=reviewElement("div");issueList.id="cw-review-issues";card.append(issueList);
+  for(const issue of issues){
+   const item=reviewElement("div",null,"qa-item");item.dataset.issueId=issue.id;
+   const label=issue.target_kind==="asset"?detail.assets.find(a=>a.id===issue.target_id)?.name:issue.target_kind==="shot"?detail.shots.find(sh=>sh.id===issue.target_id)?.title:detail.clip_title;
+   item.append(reviewElement("strong",Number(issue.time_seconds).toFixed(2)+" 秒 · "+(label||issue.target_kind)+" · "+(issue.status==="open"?"待处理":"已解决")),reviewElement("p",issue.reason));
+   const seek=reviewElement("button","定位播放时间","btn sm");seek.type="button";seek.onclick=()=>{video.currentTime=Number(issue.time_seconds);video.pause();video.scrollIntoView({block:"center"});};item.append(seek);
+   const go=reviewElement("button","返回返工工作区","btn sm");go.type="button";go.onclick=operate(async()=>{
+    const asset=detail.assets.find(a=>a.id===issue.target_id);
+    if(asset){s.asset=(await api("/films/"+film+"/assets")).find(a=>a.id===asset.id);await loadAssets();}
+    proto.turnPage(issue.target_kind==="asset"?2:issue.target_kind==="shot"?3:4);
+    const preview=el("cw-preview");preview.replaceChildren(reviewElement("h4","正式返工对象 · "+(label||issue.target_kind)),reviewElement("p","ID："+issue.target_id),reviewElement("p","来源 Take："+chosen.id+" / "+Number(issue.time_seconds).toFixed(2)+" 秒"),reviewElement("p",issue.reason));
+    notify("已返回对应工作区。正式对象和时间码问题已载入工程面板；原型示例不代表该正式对象。");
+   });item.append(go);
+   if(issue.status==="open"){
+    const resolution=reviewElement("input");resolution.placeholder="填写处理结果或重新核对的依据";resolution.maxLength=4000;resolution.setAttribute("aria-label","问题处理结果");
+    const resolve=reviewElement("button","标记已解决","btn sm");resolve.type="button";
+    resolve.onclick=operate(async()=>{await api("/review-issues/"+issue.id+"/resolve","POST",{expectedVersion:issue.version,resolution:resolution.value});await showTakeReviews(clipId,chosen.id,compareSelect.value);});item.append(resolution,resolve);
+   }else item.append(reviewElement("p","处理结果："+issue.resolution,"text-note"));
+   issueList.append(item);
+  }
+  const note=reviewElement("textarea");note.id="cw-review-note";note.rows=2;note.maxLength=4000;note.placeholder="填写音画、连续性、表演与节奏的人工审片结论";card.append(reviewField("审片结论",note));
+  const decisions=reviewElement("div",null,"flex");
+  for(const [state,label] of [["accepted","人工审片通过"],["needs_changes","标记待返工"]]){
+   const button=reviewElement("button",label,"btn sm");button.type="button";button.dataset.reviewState=state;
+   button.onclick=operate(async()=>{await api("/takes/"+chosen.id+"/review","POST",{expectedTakeVersion:detail.review_version,qaStatus:state,note:note.value});await showTakeReviews(clipId,chosen.id,compareSelect.value);});decisions.append(button);
+  }
+  const adopt=reviewElement("button","采用此 Take","btn sm");adopt.id="cw-review-adopt";adopt.type="button";
+  adopt.onclick=operate(async()=>{const clips=await api("/films/"+film+"/clips"),current=clips.find(c=>c.id===clipId);await api("/takes/"+chosen.id+"/adopt","POST",{expectedClipVersion:current.version});await showTakeReviews(clipId,chosen.id,compareSelect.value);});decisions.append(adopt);card.append(decisions);
+  const history=reviewElement("details");history.append(reviewElement("summary","审片历史（"+detail.decisions.length+" 条）"));
+  detail.decisions.forEach(d=>history.append(reviewElement("p","v"+d.review_version+" · "+qaLabel(d.qa_status)+" · "+d.note,"text-note")));card.append(history);
+  feedback.textContent="当前："+qaLabel(detail.qa_status)+" · "+issues.filter(i=>i.status==="open").length+" 个未解决问题 · "+(detail.adopted?"已采用":"未采用");
+ }
  async function showRenders(){
   if(!s.project)throw Error("先选择真实影视工程");
   const records=await api("/films/"+s.project.filmId+"/renders");
@@ -230,6 +327,7 @@
     addButton(document.querySelector("[data-action='export']"),"导出正式 MP4","real-export");
     addButton(document.querySelector("[data-action='export']"),"查看真实时间线","show-timeline");
     addButton(document.querySelector("[data-action='export']"),"查看实际成片","show-renders");
+    addButton(document.querySelector("[data-action='export']"),"审片真实 Take","review-takes");
   }
  }
  const aRoot=document.getElementById("app");if(aRoot)new MutationObserver(enhance).observe(aRoot,{childList:true,subtree:true});enhance();
@@ -240,7 +338,7 @@
   const intercept={
    "start-project":createRealProject,"project-list":openRealProjectList,
    "real-script":proposeRealScript,"real-image":generateRealAsset,"real-video":startRealVideo,"show-runs":showRuns,
-    "real-export":renderRealMovie,"show-timeline":showTimeline,"show-renders":showRenders,
+    "real-export":renderRealMovie,"show-timeline":showTimeline,"show-renders":showRenders,"review-takes":()=>showTakeReviews(),
    "upload-asset":uploadRealAsset,
    "script-versions":async()=>{showPanel();if(!s.unit)return notify("先在真实工程面板选择场景");const rev=await api("/units/"+s.unit.id+"/revisions");notify("场景共保存 "+rev.length+" 个正式版本，最近版本："+rev.at(-1)?.revision_number+"。完整版本详情可通过 API 查询。");},
    "confirm-script":async()=>{showPanel();notify(s.unit?"正式剧本当前 v"+s.unit.version+"，如有改动请点击“保存新版本”；演示确认不会修改数据库。":"请在工程面板先建立并编辑真实场景，原型示例不能替代正式剧本。");},
