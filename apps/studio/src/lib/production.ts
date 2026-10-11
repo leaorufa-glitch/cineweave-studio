@@ -2,6 +2,7 @@ import {randomUUID} from "node:crypto";
 import { db,ensureDb,transaction } from "./db";
 import {probeMedia} from "./media-qa";
 import {GatewayError} from "./providers";
+import {freezeH3,previewH3,verifiedFrozenInput} from './h3-production';
 const id=(v:string)=>{if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v))throw new GatewayError("Invalid ID",400);return v;};
 const fail=(s:number,m:string):never=>{throw new GatewayError(m,s);};
 const response=(v:unknown,s=200)=>Response.json(v,{status:s,headers:{"Cache-Control":"no-store"}});
@@ -62,27 +63,32 @@ export async function productionDispatch(req:Request,parts:string[]):Promise<Res
   });
   return response({clipId:clip,shotId:shot,start,end},201);
  }
+ if(parts[0]==='clips'&&parts.length===3&&parts[2]==='h3-preview'&&method==='POST'){
+  const b=await json(req);return response(await previewH3(id(parts[1]),b.mode,b.provider));
+ }
+ if(parts[0]==='clips'&&parts.length===3&&parts[2]==='h3-freeze'&&method==='POST'){
+  return response(await freezeH3(id(parts[1]),await json(req)),201);
+ }
+ if(parts[0]==='clips'&&parts.length===3&&parts[2]==='h3-compilations'&&method==='GET'){
+  return response((await db().query('SELECT id,clip_id,clip_version,mode,provider,rules_version,hash,compiled_prompt,reference_map,source_snapshot,validation,created_at FROM h3_compilations WHERE clip_id=$1 ORDER BY created_at DESC',[id(parts[1])])).rows);
+ }
  if(parts[0]==="clips"&&parts.length===3&&parts[2]==="runs"){
   const clip=id(parts[1]);
   if(method==="GET")return response((await db().query("SELECT r.*,t.id AS take_id,t.media_id FROM video_runs r LEFT JOIN video_takes t ON t.run_id=r.id WHERE r.clip_id=$1 ORDER BY r.created_at DESC",[clip])).rows);
   if(method==="POST"){
-   const b=await json(req),key=required(req.headers.get("Idempotency-Key")??b.intentKey,"Idempotency-Key");
+   const b=await json(req),key=required(req.headers.get("Idempotency-Key")??b.intentKey,"Idempotency-Key"),compiledInputId=id(required(b.compiledInputId,'Frozen compilation ID'));
    if(key.length<8||key.length>128)fail(400,"Idempotency-Key must contain 8–128 characters");
    const outcome=await transaction(async client=>{
     const c=(await client.query("SELECT * FROM generation_clips WHERE id=$1 FOR UPDATE",[clip])).rows[0];if(!c)fail(404,"Clip not found");
     const previous=(await client.query("SELECT * FROM video_runs WHERE clip_id=$1 AND intent_key=$2",[clip,key])).rows[0];if(previous)return {result:previous,created:false};
     if((await client.query("SELECT id FROM video_runs WHERE clip_id=$1 AND status IN ('waiting_submit','preparing','submitting','submission_unknown','queued','in_progress','awaiting_media','media_failed')",[clip])).rowCount)fail(409,'Resolve the existing submission or retrieve its media before creating another paid Run');
-    if(c.continuation_parent_clip_id)fail(409,"This Clip requires native Motion Context continuation. RunningHub does not support it.");
-    const mediaIds=c.reference_media_ids as string[];
-    const selectedRevisions=Array.isArray(c.plan?.referenceRevisionIds)?c.plan.referenceRevisionIds:[];
-    const references=(await client.query("SELECT DISTINCT ON (m.id) m.id AS media_id,m.sha256,m.mime,r.id AS revision_id,r.revision_number,r.content_qa,a.id AS asset_id,COALESCE(r.metadata->>'name',a.name) AS name,a.kind,COALESCE(r.metadata->>'variant',a.variant) AS variant,r.description,COALESCE((r.metadata->>'baselineRate')::numeric,a.baseline_rate) AS baseline_rate FROM asset_revisions r JOIN assets a ON a.id=r.asset_id JOIN media_files m ON m.id=r.media_id WHERE a.film_id=$1 AND r.media_id=ANY($2::uuid[]) AND (cardinality($3::uuid[])=0 OR r.id=ANY($3::uuid[])) ORDER BY m.id,r.created_at DESC",[c.film_id,mediaIds,selectedRevisions])).rows;
-    if(mediaIds.some(id=>!references.some(r=>r.media_id===id)))fail(400,"Reference must be a formal media version in this Film");
-    if(references.some(r=>r.content_qa?.status==='needs_changes'))fail(409,"Reference asset needs changes");
-    if(references.filter(r=>r.mime.startsWith('image/')).length>6||references.filter(r=>r.mime.startsWith('audio/')).length>3)fail(400,"RunningHub supports up to six images and three audio references");
+    const {frozen,input,compiled}=await verifiedFrozenInput(client,clip,compiledInputId,c.version);
+    const mediaIds=compiled.referenceMap.map(r=>r.mediaId);
+    const references=compiled.referenceMap.map(r=>({media_id:r.mediaId,sha256:r.sha256,mime:r.mime,revision_id:r.revisionId,asset_id:r.assetId,label:r.label,role:r.role,upload_index:r.uploadIndex}));
     const shots=(await client.query("SELECT l.*,s.version,s.title,s.description,s.design FROM clip_shots l JOIN director_shots s ON s.id=l.shot_id WHERE clip_id=$1 ORDER BY clip_start_seconds",[clip])).rows;
     const script=(await client.query("SELECT u.id,u.title,u.version,u.adopted_revision_id,r.content FROM script_units u LEFT JOIN script_revisions r ON r.id=u.adopted_revision_id WHERE u.film_id=$1 ORDER BY position",[c.film_id])).rows;
-    const snap={clipId:clip,clipVersion:c.version,filmId:c.film_id,prompt:c.prompt,seconds:c.seconds,aspectRatio:c.aspect_ratio,referenceMediaIds:mediaIds,references,shots,script,plan:c.plan,model:"runninghub-minimax-h3",routeRole:'temporary_test',nativeContinuation:false,preferences:{targetResolution:'480P',steps:20},routeParameters:{megapixels:0.4,upscale:1,stepsExposed:false}};
-    const result=(await client.query("INSERT INTO video_runs(id,clip_id,provider,intent_key,input_snapshot) VALUES($1,$2,'runninghub',$3,$4) RETURNING *",[randomUUID(),clip,key,JSON.stringify(snap)])).rows[0];return {result,created:true};
+    const snap={clipId:clip,clipVersion:c.version,filmId:c.film_id,compiledInputId:frozen.id,compilationHash:compiled.hash,rulesVersion:compiled.rulesVersion,mode:compiled.mode,prompt:compiled.prompt,seconds:c.seconds,aspectRatio:c.aspect_ratio,referenceMediaIds:mediaIds,references,referenceMap:compiled.referenceMap,shots,script,plan:input.plan,source:compiled.source,model:compiled.provider,routeRole:'temporary_test',nativeContinuation:false,preferences:{targetResolution:'480P',steps:20},routeParameters:{megapixels:0.4,upscale:1,stepsExposed:false}};
+    const result=(await client.query("INSERT INTO video_runs(id,clip_id,provider,intent_key,input_snapshot,compiled_input_id) VALUES($1,$2,'runninghub',$3,$4,$5) RETURNING *",[randomUUID(),clip,key,JSON.stringify(snap),frozen.id])).rows[0];return {result,created:true};
    });
    const {result,created}=outcome;
    return response({id:result.id,clipId:clip,status:result.status,providerJobId:result.provider_job_id,alreadyExists:!created},created?201:200);
