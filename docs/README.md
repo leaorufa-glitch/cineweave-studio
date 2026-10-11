@@ -1,3 +1,5 @@
+> **最新 UI/UX 基线（PD-011，2026-10-11）**：用户上传的七页面 HTML/CSS/JS 源码包优先于旧 `design/v1.4/` 文字稿。**源码包上传 GitHub 仍待完成，现有 prototype/ 不是该上传原版。**详见 [PD-011](decisions/2026-10-11-HTML-PROTOTYPE-UI-BASELINE.md)。
+
 # 设计文档索引
 
 状态更新：2026-10-10。
